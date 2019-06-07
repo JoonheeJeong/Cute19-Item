@@ -64,13 +64,21 @@ public class CuteInterpreter {
     private Node runFunction(FunctionNode operator, ListNode operand) {
         switch (operator.funcType) {
             case CAR:
-                ListNode quoted = (ListNode) runQuote(operand);
-                Node car = quoted.car();
-                if (car instanceof ListNode)
-                    return ListNode.cons(new QuoteNode(car), ListNode.EMPTY_LIST);
-                return car; // IntNode 또는 IdNode
+                if (operand.cdr() != ListNode.EMPTY_LIST)
+                    return null;
+                Node car = operand.car();
+                if (car instanceof QuoteNode) {
+                    Node result = ((ListNode) runQuote(operand)).car(); // if casting error, wrong input
+                    return ListNode.cons(new QuoteNode(result), ListNode.EMPTY_LIST);
+                }
+                Node newOperand;
+                if (car instanceof IdNode) {
+                    newOperand = runExpr(car);
+                    return runFunction(operator, (ListNode) newOperand); // if casting error, wrong input
+                }
+                return null; // operand가 중첩 리스트일 때, 일단 null.
             case CDR:
-                quoted = (ListNode) runQuote(operand);
+                ListNode quoted = (ListNode) runQuote(operand);
                 return ListNode.cons(new QuoteNode(quoted.cdr()), ListNode.EMPTY_LIST);
             case CONS:
                 car = operand.car();
