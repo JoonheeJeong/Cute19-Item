@@ -78,8 +78,18 @@ public class CuteInterpreter {
                 }
                 return null; // operand가 중첩 리스트일 때, 일단 null.
             case CDR:
-                ListNode quoted = (ListNode) runQuote(operand);
-                return ListNode.cons(new QuoteNode(quoted.cdr()), ListNode.EMPTY_LIST);
+                if (operand.cdr() != ListNode.EMPTY_LIST)
+                    return null;
+                car = operand.car();
+                if (car instanceof QuoteNode) {
+                    ListNode result = ((ListNode) runQuote(operand)).cdr(); // if casting error, wrong input
+                    return ListNode.cons(new QuoteNode(result), ListNode.EMPTY_LIST);
+                }
+                if (car instanceof IdNode) {
+                    newOperand = runExpr(car);
+                    return runFunction(operator, (ListNode) newOperand); // if casting error, wrong input
+                }
+                return null; // operand가 중첩 리스트일 때, 일단 null.
             case CONS:
                 car = operand.car();
                 Node head;
@@ -91,7 +101,7 @@ public class CuteInterpreter {
                 ListNode tail = (ListNode) runQuote(quotedList); // tail은 항상 quoted
                 return new QuoteNode(ListNode.cons(head, tail));
             case NULL_Q:
-                quoted = (ListNode) runQuote(operand); // 단일 List의 Quote로 입력 한정
+                ListNode quoted = (ListNode) runQuote(operand); // 단일 List의 Quote로 입력 한정
                 if (quoted == ListNode.EMPTY_LIST)
                     return BooleanNode.TRUE_NODE;
                 return BooleanNode.FALSE_NODE;

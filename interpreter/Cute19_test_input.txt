@@ -1,9 +1,13 @@
 ( car ( car ' ( ( 1 2 ) 3 ) ) )
 1
 
-( define a ' ( 1 2 ) )
+( define a ' ( ( 1 2 ) 3 ( 4 5 ) ) )
 ( car a )
-1
+'( 1 2 )
+( cdr a )
+'( 3 ( 4 5 ) )
+
+
 
 ( not ( car ' ( #F a b 123 ) ) )
 
