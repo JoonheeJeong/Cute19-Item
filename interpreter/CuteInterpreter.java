@@ -64,7 +64,6 @@ public class CuteInterpreter {
     }
 
     private Node runFunction(FunctionNode operator, ListNode operand) {
-        int a = 1;
         switch (operator.funcType) {
             case CAR:
                 if (operand.cdr() != ListNode.EMPTY_LIST)
@@ -115,11 +114,30 @@ public class CuteInterpreter {
                     return null;
                 }
                 return new QuoteNode(ListNode.cons(head, tail));
-            case NULL_Q:
-                ListNode quoted = (ListNode) runQuote(operand); // 단일 List의 Quote로 입력 한정
-                if (quoted == ListNode.EMPTY_LIST)
-                    return BooleanNode.TRUE_NODE;
-                return BooleanNode.FALSE_NODE;
+            case NULL_Q: // operand가 List로 들어와야 함.
+                car = operand.car();
+                cdr = operand.cdr();
+                if (car instanceof IntNode)
+                    return BooleanNode.FALSE_NODE;
+                if (car instanceof BooleanNode)
+                    return BooleanNode.FALSE_NODE;
+                if (car instanceof QuoteNode) {
+                    operand = (ListNode) runQuote(operand);
+                    if (operand == ListNode.EMPTY_LIST)
+                        return BooleanNode.TRUE_NODE;
+                    return BooleanNode.FALSE_NODE;
+                }
+                if (car instanceof FunctionNode || car instanceof BinaryOpNode) {
+                    if (cdr == ListNode.EMPTY_LIST)
+                        return BooleanNode.FALSE_NODE;
+                    Node evalResult = runExpr(operand);
+                    if (evalResult instanceof ListNode)
+                        return runFunction(operator, (ListNode) evalResult); // item3 수정 필요
+                    return runFunction(operator, ListNode.cons(evalResult, ListNode.EMPTY_LIST)); // item3 수정 필요
+                }
+                if (car instanceof IdNode)
+                    return runFunction(operator, (ListNode) runExpr(car)); // item3 수정 필요
+                return runList((ListNode) car); // item3 수정 필요
             case ATOM_Q:
                 head = runQuote(operand); // 단일 Quote로 입력 한정
                 if (head == ListNode.EMPTY_LIST)
