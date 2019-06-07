@@ -138,13 +138,32 @@ public class CuteInterpreter {
                 if (car instanceof IdNode)
                     return runFunction(operator, (ListNode) runExpr(car)); // item3 수정 필요
                 return runList((ListNode) car); // item3 수정 필요
-            case ATOM_Q:
-                head = runQuote(operand); // 단일 Quote로 입력 한정
-                if (head == ListNode.EMPTY_LIST)
+            case ATOM_Q: // only one operand
+                car = operand.car();
+                cdr = operand.cdr();
+                if (car instanceof IntNode)
                     return BooleanNode.TRUE_NODE;
-                if (head instanceof ListNode) // Empty가 아닌 List이면 false
-                    return BooleanNode.FALSE_NODE;
-                return BooleanNode.TRUE_NODE;
+                if (car instanceof BooleanNode)
+                    return BooleanNode.TRUE_NODE;
+                if (car instanceof QuoteNode) {
+                    Node quote = runQuote(operand); // List가 아닐 수도 있다. ( atom? ' c ) => #T
+                    if (quote == ListNode.EMPTY_LIST)
+                        return BooleanNode.TRUE_NODE;
+                    if (quote instanceof ListNode)
+                        return BooleanNode.FALSE_NODE;
+                    return BooleanNode.TRUE_NODE;
+                }
+                if (car instanceof FunctionNode || car instanceof BinaryOpNode) {
+                    if (cdr == ListNode.EMPTY_LIST)
+                        return BooleanNode.TRUE_NODE;
+                    Node evalResult = runExpr(operand);
+                    if (evalResult instanceof ListNode)
+                        return runFunction(operator, (ListNode) evalResult); // item3 수정 필요
+                    return runFunction(operator, ListNode.cons(evalResult, ListNode.EMPTY_LIST)); // item3 수정 필요
+                }
+                if (car instanceof IdNode)
+                    return runFunction(operator, (ListNode) runExpr(car)); // item3 수정 필요
+                return runList((ListNode) car); // item3 수정 필요
             case EQ_Q:
                 car = operand.car();
                 Node first;

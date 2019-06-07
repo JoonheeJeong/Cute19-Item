@@ -46,11 +46,13 @@
 #T
 ( atom? atom? )
 #T
+( atom? ( car ' ( 1 2 ) ) )
+#T
+( atom? ( cdr ' ( 1 2 ) ) )
+#F
 ( atom? a )
 #F
 ( atom? ' ( 1 2 ) )
-#F
-( atom? ( car ' ( 1 2 ) ) )
 #F
 
 -----------------------------
