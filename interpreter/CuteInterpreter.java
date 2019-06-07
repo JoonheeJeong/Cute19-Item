@@ -6,7 +6,9 @@ import parser.parse.*;
 import java.util.Scanner;
 
 public class CuteInterpreter {
-    private static final Node define = new Node() {};
+    private static final Node define = new Node() {
+    };
+
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         System.out.println("Starting Cute19. Enter \"q!\" to exit.");
@@ -62,6 +64,7 @@ public class CuteInterpreter {
     }
 
     private Node runFunction(FunctionNode operator, ListNode operand) {
+        int a = 1;
         switch (operator.funcType) {
             case CAR:
                 if (operand.cdr() != ListNode.EMPTY_LIST)
@@ -91,14 +94,26 @@ public class CuteInterpreter {
                 }
                 return null; // operand가 중첩 리스트일 때, 일단 null.
             case CONS:
+                ListNode cdr = operand.cdr();
+                ListNode quotedList = (ListNode) stripList(cdr); // error나면 input error
+                ListNode tail = (ListNode) runQuote(quotedList); // tail은 항상 quoted
+
                 car = operand.car();
                 Node head;
-                if (!(car instanceof ListNode)) // ListNode가 아니면 head는 그대로
-                    head = car; // IntNode 또는 IdNode
-                else
-                    head = runQuote((ListNode) car); // ListNode이면 head는 quoted
-                ListNode quotedList = (ListNode) stripList(operand.cdr()); // 두번째 operand를 벗겨낸다.
-                ListNode tail = (ListNode) runQuote(quotedList); // tail은 항상 quoted
+                if (car instanceof IntNode || car instanceof BooleanNode)
+                    head = car;
+                else if (car instanceof ListNode) {
+                    Node ccar = ((ListNode) car).car();
+                    if (ccar instanceof QuoteNode)
+                        head = runQuote((ListNode) car);
+                    else
+                        head = runList((ListNode) car); // 중첩 함수 대응 불가. item3에서 수정 필요.
+                } else if (car instanceof IdNode) {
+                    head = runExpr(car);
+                    return runFunction(operator, ListNode.cons(head, cdr));
+                } else { // FunctionNode, BinaryOpNode => error
+                    return null;
+                }
                 return new QuoteNode(ListNode.cons(head, tail));
             case NULL_Q:
                 ListNode quoted = (ListNode) runQuote(operand); // 단일 List의 Quote로 입력 한정
