@@ -122,8 +122,8 @@ public class CuteInterpreter {
                 if (car instanceof BooleanNode)
                     return BooleanNode.FALSE_NODE;
                 if (car instanceof QuoteNode) {
-                    operand = (ListNode) runQuote(operand);
-                    if (operand == ListNode.EMPTY_LIST)
+                    Node quote = runQuote(operand); // List가 아닐 수도 있다. ( null? ' c ) => #F
+                    if (quote == ListNode.EMPTY_LIST)
                         return BooleanNode.TRUE_NODE;
                     return BooleanNode.FALSE_NODE;
                 }
