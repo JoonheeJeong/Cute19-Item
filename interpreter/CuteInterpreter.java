@@ -42,9 +42,7 @@ public class CuteInterpreter {
                 value = ListNode.cons(value, ListNode.EMPTY_LIST);
             return runExpr(value);
         }
-        if (rootExpr instanceof IntNode)
-            return rootExpr;
-        if (rootExpr instanceof BooleanNode)
+        if (rootExpr instanceof ValueNode)
             return rootExpr;
         if (rootExpr instanceof ListNode)
             return runList((ListNode) rootExpr);
@@ -97,23 +95,9 @@ public class CuteInterpreter {
                 ListNode quotedList = (ListNode) stripList(cdr); // error나면 input error
                 ListNode tail = (ListNode) runQuote(quotedList); // tail은 항상 quoted
 
-                car = operand.car();
-                Node head;
-                if (car instanceof IntNode || car instanceof BooleanNode)
-                    head = car;
-                else if (car instanceof ListNode) {
-                    Node ccar = ((ListNode) car).car();
-                    if (ccar instanceof QuoteNode)
-                        head = runQuote((ListNode) car);
-                    else
-                        head = runList((ListNode) car); // 중첩 함수 대응 불가. item3에서 수정 필요.
-                } else if (car instanceof IdNode) {
-                    head = runExpr(car);
-                    return runFunction(operator, ListNode.cons(head, cdr));
-                } else { // FunctionNode, BinaryOpNode => error
-                    return null;
-                }
-                return new QuoteNode(ListNode.cons(head, tail));
+                Node head = stripIfQuotedList(eval(operand.car()));
+                return (head == null || tail == null) ? null
+                        : ListNode.cons(new QuoteNode(ListNode.cons(head, tail)), ListNode.EMPTY_LIST);
             case NULL_Q: // operand가 List로 들어와야 함.
                 car = operand.car();
                 cdr = operand.cdr();
@@ -185,16 +169,14 @@ public class CuteInterpreter {
                 second = operand.cdr().car();
                 if (!(first instanceof IdNode))
                     return null;
-                if (!(second instanceof ValueNode)) { // 수정 필요
-                    if (!(second instanceof ListNode))
-                        return null;
+                second = eval(second);
+                if (second == null)
+                    return null;
+                if (second instanceof ListNode) {
                     car = ((ListNode) second).car();
-                    if (car instanceof QuoteNode)
-                        second = car;
-                    else
-                        second = runExpr(second);
-                    if (!(second instanceof ValueNode))
+                    if (!(car instanceof QuoteNode)) // eval의 결과인 List가 quote가 아니면 error
                         return null;
+                    second = car;
                 }
                 ItemTable.put((IdNode) first, (ValueNode) second);
                 return define;
@@ -205,6 +187,8 @@ public class CuteInterpreter {
     }
 
     private Node eval(Node operand) {
+        if (operand == null) // error
+            return null;
         if (!(operand instanceof ListNode)) {
             if (!(operand instanceof IdNode))
                 return operand;
@@ -322,6 +306,17 @@ public class CuteInterpreter {
                 break;
         }
         return null;
+    }
+
+    private Node stripIfQuotedList(Node node) {
+        if (node == null)
+            return null;
+        if (!(node instanceof ListNode))
+            return node;
+        ListNode listNode = (ListNode) node;
+        if (listNode.car() instanceof QuoteNode)
+            return runQuote(listNode);
+        return node; // 이 부분 eval(node) 안 해도 되는지 의문.
     }
 
     private Node runQuote(ListNode node) {

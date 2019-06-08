@@ -1,6 +1,6 @@
-( define a + ) // ÇØ°á ÇÊ¿ä
+( define a + ) // í•´ê²° í•„ìš”
 
-( car ( car ' ( ( 1 2 ) 3 ) ) )
+( car ( car ' ( ( 1 2 ) 3 ) ) )Z
 1
 ( cons ( car ' ( ( 1 2 ) 3 ) ) ' ( 3 4 ) )
 
@@ -9,9 +9,13 @@
 '( 1 2 )
 ( cdr a )
 '( 3 ( 4 5 ) )
+
 ( cons a '( 6 7 ) )
 ' ( ( ( 1 2 ) 3 ( 4 5 ) ) 6 7 )
-
+( cons ' ( ) ' ( ) )
+'( ( ) )
+( cons ' ( ) ' ( 1 ) )
+'( ( ) 1 )
 
 ( define a ' ( ( 1 2 ) 3 ( 4 5 ) ) )
 ( define b ' ( ) )
@@ -60,7 +64,9 @@
 ( define a ' ( ( 1 2 ) 3 ( 4 5 ) ) )
 ( define b ' ( ) )
 ( define c ( * 2 4 ) )
-( define d ( car ' ( 1 2 ) ) ) // define Àû¿ë ¾È µÊ. define ¼öÁ¤ ÇÊ¿ä.
+( define d ( car ' ( 1 2 ) ) )
+( define e ' ( 1 2 ) )
+( define f + )
 ( eq? b ' ( ) )
 #T
 ( eq? 'yes 'yes )
@@ -83,9 +89,9 @@
 #F
 ( eq? ( car a ) ( car ' ( 1 7 8 ) ) )
 #T
-( eq? ( car d ) ( car ' ( 1 2 ) ) ) // À§¿¡ define dºÎÅÍ ÇØ°áÇÒ °Í
+( eq? ( car e ) ( car ' ( 1 2 ) ) )
 #T
-( eq? ( car ( car a ) ) car ' ( 1 2 ) ) // µð¹ö±ë ÇÊ¿ä item 3
+( eq? ( car ( car a ) ) car ' ( 1 2 ) ) // ë””ë²„ê¹… í•„ìš” item 3
 #T
 -----------------------------
 ( not ( car ' ( #F a b 123 ) ) )

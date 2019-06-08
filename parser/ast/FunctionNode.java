@@ -5,27 +5,27 @@ import java.util.Map;
 
 import lexer.TokenType;
 
-// Àü¹İÀûÀÎ Çü½ÄÀº BinaryOpNode¿Í ¿ÏÀü ÀÏÄ¡ÇÑ´Ù.
-// ³»ºÎÀûÀ¸·Î enumÀÇ Á¾·ù°¡ ´Ù¸£´Ù´Â °Í°ú, Å¬·¡½º ÀÌ¸§¸¸ ´Ù¸¦ »ÓÀÌ´Ù.
-public class FunctionNode implements Node {
-	public enum FunctionType {
-		DEFINE { TokenType tokenType() { return TokenType.DEFINE; } },
-		LAMBDA { TokenType tokenType() { return TokenType.LAMBDA; } },
-		COND { TokenType tokenType() { return TokenType.COND; } },
-		QUOTE { TokenType tokenType() { return TokenType.QUOTE; } },
-		NOT { TokenType tokenType() { return TokenType.NOT; } },
-		CDR { TokenType tokenType() { return TokenType.CDR; } },
-		CAR { TokenType tokenType() { return TokenType.CAR; } },
-		CONS { TokenType tokenType() { return TokenType.CONS; } },
-		EQ_Q { TokenType tokenType() { return TokenType.EQ_Q; } },
-		NULL_Q { TokenType tokenType() { return TokenType.NULL_Q; } },
-		ATOM_Q { TokenType tokenType() { return TokenType.ATOM_Q; } };
+// ì „ë°˜ì ì¸ í˜•ì‹ì€ BinaryOpNodeì™€ ì™„ì „ ì¼ì¹˜í•œë‹¤.
+// ë‚´ë¶€ì ìœ¼ë¡œ enumì˜ ì¢…ë¥˜ê°€ ë‹¤ë¥´ë‹¤ëŠ” ê²ƒê³¼, í´ë˜ìŠ¤ ì´ë¦„ë§Œ ë‹¤ë¥¼ ë¿ì´ë‹¤.
+public class FunctionNode implements ValueNode {
+    public enum FunctionType {
+        DEFINE { TokenType tokenType() { return TokenType.DEFINE; } },
+        LAMBDA { TokenType tokenType() { return TokenType.LAMBDA; } },
+        COND { TokenType tokenType() { return TokenType.COND; } },
+        QUOTE { TokenType tokenType() { return TokenType.QUOTE; } },
+        NOT { TokenType tokenType() { return TokenType.NOT; } },
+        CDR { TokenType tokenType() { return TokenType.CDR; } },
+        CAR { TokenType tokenType() { return TokenType.CAR; } },
+        CONS { TokenType tokenType() { return TokenType.CONS; } },
+        EQ_Q { TokenType tokenType() { return TokenType.EQ_Q; } },
+        NULL_Q { TokenType tokenType() { return TokenType.NULL_Q; } },
+        ATOM_Q { TokenType tokenType() { return TokenType.ATOM_Q; } };
 
-        // TokenTypeÀ» Key·Î, FuctionTypeÀ» Value·Î ÇÏ´Â ¸ÊÀ» class variable·Î ¼±¾ğ
+        // TokenTypeì„ Keyë¡œ, FuctionTypeì„ Valueë¡œ í•˜ëŠ” ë§µì„ class variableë¡œ ì„ ì–¸
         private static Map<TokenType, FunctionType> fromTokenType = new HashMap<TokenType, FunctionType>();
 
-        // class initialization blockÀº FuctionType enumÀÌ ¸Ş¸ğ¸®¿¡ ¿Ã¶ó°¥ ¶§ È£ÃâµÈ´Ù.
-        // À§ÀÇ ¸ÊÀ» ÃÊ±âÈ­ ½ÃÅ°´Â ¿ªÇÒÀ» ÇÑ´Ù.
+        // class initialization blockì€ FuctionType enumì´ ë©”ëª¨ë¦¬ì— ì˜¬ë¼ê°ˆ ë•Œ í˜¸ì¶œëœë‹¤.
+        // ìœ„ì˜ ë§µì„ ì´ˆê¸°í™” ì‹œí‚¤ëŠ” ì—­í• ì„ í•œë‹¤.
         static {
             for (FunctionType fType : FunctionType.values())
                 fromTokenType.put(fType.tokenType(), fType);
@@ -35,7 +35,7 @@ public class FunctionNode implements Node {
             return fromTokenType.get(tType);
         }
 
-        // Ãß»ó ¸Ş¼Òµå¸¦ ¸¸µé¾î¼­ enumÀ» ÅëÇØ TokenTypeÀ» °¡Á®¿Ã ¶§ »ç¿ëÇÏ°Ô ÇÏ¿´´Ù.
+        // ì¶”ìƒ ë©”ì†Œë“œë¥¼ ë§Œë“¤ì–´ì„œ enumì„ í†µí•´ TokenTypeì„ ê°€ì ¸ì˜¬ ë•Œ ì‚¬ìš©í•˜ê²Œ í•˜ì˜€ë‹¤.
         abstract TokenType tokenType();
 
     }
