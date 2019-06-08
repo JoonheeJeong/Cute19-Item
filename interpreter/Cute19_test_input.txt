@@ -10,6 +10,21 @@
 ( cdr a )
 '( 3 ( 4 5 ) )
 
+*( car id )
+( car a )
+*( car quotedList )
+( car ' ( 1 2 ) )
+1
+( car ' ( a 3 ) )
+value of a
+*( car NestedList ) // item 3
+( car ( car ' ( ( 1 2 ) 3 ) ) )
+1
+( car ( car ' ( ( a ) 3 ) ) )
+value a
+( ( car ( car ' ( ( a ) 3 ) ) ) ' ( ( a ) ) ) // a == car
+value of a => car
+
 ( cons a '( 6 7 ) )
 ' ( ( ( 1 2 ) 3 ( 4 5 ) ) 6 7 )
 ( cons ' ( ) ' ( ) )
@@ -93,11 +108,16 @@
 #T
 ( eq? ( car ( car a ) ) car ' ( 1 2 ) ) // 디버깅 필요 item 3
 #T
+
+( define a ( < 1 2 ) )
+#T
+( not a )
+#F
 -----------------------------
 ( not ( car ' ( #F a b 123 ) ) )
-
+#T
 ( not ( = ( / 4 2 ) ( * 1 2 ) ) )
-
+#F
 
 
 ( cond ( ( not ( atom? ' ( ) ) ) 1 ) ( ( < ( / 4 2 ) ( * 2 3 ) ) ( cons 1 ' ( 2 3 ) ) ) )

@@ -68,8 +68,13 @@ public class CuteInterpreter {
                     return null;
                 Node car = operand.car();
                 if (car instanceof QuoteNode) {
-                    Node result = ((ListNode) runQuote(operand)).car(); // if casting error, wrong input
-                    return ListNode.cons(new QuoteNode(result), ListNode.EMPTY_LIST);
+                    ListNode quote = (ListNode) runQuote(operand); // if casting error, error input
+                    Node caar = quote.car();
+                    if (caar instanceof ListNode)
+                        return ListNode.cons(new QuoteNode(caar), ListNode.EMPTY_LIST);
+                    if (caar instanceof IdNode)
+                        return runExpr(caar);
+                    return caar;
                 }
                 Node newOperand;
                 if (car instanceof IdNode) {
@@ -82,8 +87,9 @@ public class CuteInterpreter {
                     return null;
                 car = operand.car();
                 if (car instanceof QuoteNode) {
-                    ListNode result = ((ListNode) runQuote(operand)).cdr(); // if casting error, wrong input
-                    return ListNode.cons(new QuoteNode(result), ListNode.EMPTY_LIST);
+                    ListNode quote = (ListNode) runQuote(operand); // if casting error, wrong input
+                    ListNode cdar = quote.cdr();
+                    return ListNode.cons(new QuoteNode(cdar), ListNode.EMPTY_LIST);
                 }
                 if (car instanceof IdNode) {
                     newOperand = runExpr(car);
@@ -95,7 +101,7 @@ public class CuteInterpreter {
                 ListNode quotedList = (ListNode) stripList(cdr); // error나면 input error
                 ListNode tail = (ListNode) runQuote(quotedList); // tail은 항상 quoted
 
-                Node head = stripIfQuotedList(eval(operand.car()));
+                Node head = stripQuotedList(eval(operand.car()));
                 return (head == null || tail == null) ? null
                         : ListNode.cons(new QuoteNode(ListNode.cons(head, tail)), ListNode.EMPTY_LIST);
             case NULL_Q: // operand가 List로 들어와야 함.
@@ -120,8 +126,8 @@ public class CuteInterpreter {
                     return runFunction(operator, ListNode.cons(evalResult, ListNode.EMPTY_LIST)); // item3 수정 필요
                 }
                 if (car instanceof IdNode)
-                    return runFunction(operator, (ListNode) runExpr(car)); // item3 수정 필요
-                return runList((ListNode) car); // item3 수정 필요
+                    return runFunction(operator, ListNode.cons(runExpr(car), ListNode.EMPTY_LIST));
+                return runFunction(operator, ListNode.cons(stripQuotedList(eval(operand)), ListNode.EMPTY_LIST));
             case ATOM_Q: // only one operand
                 car = operand.car();
                 cdr = operand.cdr();
@@ -146,8 +152,8 @@ public class CuteInterpreter {
                     return runFunction(operator, ListNode.cons(evalResult, ListNode.EMPTY_LIST)); // item3 수정 필요
                 }
                 if (car instanceof IdNode)
-                    return runFunction(operator, (ListNode) runExpr(car)); // item3 수정 필요
-                return runList((ListNode) car); // item3 수정 필요
+                    return runFunction(operator, ListNode.cons(runExpr(car), ListNode.EMPTY_LIST));
+                return runFunction(operator, ListNode.cons(stripQuotedList(eval(operand)), ListNode.EMPTY_LIST));
             case EQ_Q:
                 Node first = eval(operand.car());
                 Node second = eval(operand.cdr().car());
@@ -156,7 +162,7 @@ public class CuteInterpreter {
                 car = operand.car();
                 if (car instanceof BooleanNode) // Boolean이 List에 감싸져 있으면 벗겨서 함수 호출
                     return revertBooleanNode((BooleanNode) car);
-                return revertBooleanNode(evalTest(operand)); // test 결과 역전시켜서 리턴
+                return revertBooleanNode((BooleanNode) eval(operand)); // casting error => input error
             case COND:
                 Node temp = runExpr(operand.car());
                 if (temp instanceof ListNode) // 조건-실행 List 2개 이상
@@ -195,19 +201,24 @@ public class CuteInterpreter {
             return runExpr(operand);
         }
         Node car = ((ListNode) operand).car();
+        if (car == null) // EMPTY_LIST
+            return operand;
         if (car instanceof IntNode || car instanceof BooleanNode) // error input
             return null;
-        else if (car instanceof FunctionNode || car instanceof BinaryOpNode || car instanceof ListNode)
+        if (car instanceof FunctionNode || car instanceof BinaryOpNode || car instanceof ListNode)
             return runExpr(operand);
-        else if (car instanceof IdNode) {
+        if (car instanceof IdNode) {
             car = runExpr(car);
+            if (car == null) // error input
+                return null;
             ListNode cdr = ((ListNode) operand).cdr();
-            return runList(ListNode.cons(car, cdr));
+            if (cdr == ListNode.EMPTY_LIST)
+                return car;
+            return runList(ListNode.cons(car, cdr)); // 리스트 뒷부분 eval 후에 List로 합쳐서 다시 eval
         }
-        else if (car instanceof QuoteNode)
+        if (car instanceof QuoteNode)
             return operand;
-        else
-            return null;
+        return null;
     }
 
     private BooleanNode revertBooleanNode(BooleanNode arg) {
@@ -308,7 +319,7 @@ public class CuteInterpreter {
         return null;
     }
 
-    private Node stripIfQuotedList(Node node) {
+    private Node stripQuotedList(Node node) {
         if (node == null)
             return null;
         if (!(node instanceof ListNode))
