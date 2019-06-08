@@ -12,7 +12,14 @@ public class QuoteNode implements ValueNode {
         return quoted.toString();
     }
 
-    public Node nodeInside() {
-        return quoted;
+    public Node nodeInside() { return quoted; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof QuoteNode)) return false;
+        QuoteNode param = (QuoteNode) o;
+        Node paramQuoted = param.nodeInside();
+        return (quoted.equals(paramQuoted)) ? true : false;
     }
 }

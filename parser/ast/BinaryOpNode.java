@@ -41,4 +41,12 @@ public class BinaryOpNode implements Node {
 	public String toString() {
 		return binType.name();
 	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (!(o instanceof BinaryOpNode)) return false;
+		BinaryOpNode param = (BinaryOpNode) o;
+		return (param.binType == param.binType) ? true : false;
+	}
 }

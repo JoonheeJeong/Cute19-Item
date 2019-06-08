@@ -1,3 +1,5 @@
+( define a + ) // 해결 필요
+
 ( car ( car ' ( ( 1 2 ) 3 ) ) )
 1
 ( cons ( car ' ( ( 1 2 ) 3 ) ) ' ( 3 4 ) )
@@ -17,7 +19,7 @@
 #T
 ( null? ' ( ) )
 #T
-( null? ( car ' ( ) ) )
+( null? ( car ' ( ( ) ) ) )
 #T
 ( null? a )
 #F
@@ -55,6 +57,36 @@
 ( atom? ' ( 1 2 ) )
 #F
 
+( define a ' ( ( 1 2 ) 3 ( 4 5 ) ) )
+( define b ' ( ) )
+( define c ( * 2 4 ) )
+( define d ( car ' ( 1 2 ) ) ) // define 적용 안 됨. define 수정 필요.
+( eq? b ' ( ) )
+#T
+( eq? 'yes 'yes )
+#T
+( eq? ( * 6 7 ) 42 )
+#T
+( eq? #t #t )
+#T
+( eq? ' ( ) ' ( ) )
+#T
+( eq? b ' ( ) )
+#T
+( eq? c 8 )
+#T
+( eq? 8 8 )
+#T
+( eq? 'yes 'no )
+#F
+( eq? ' ( a b ) ' ( a b ) )
+#F
+( eq? ( car a ) ( car ' ( 1 7 8 ) ) )
+#T
+( eq? ( car d ) ( car ' ( 1 2 ) ) ) // 위에 define d부터 해결할 것
+#T
+( eq? ( car ( car a ) ) car ' ( 1 2 ) ) // 디버깅 필요 item 3
+#T
 -----------------------------
 ( not ( car ' ( #F a b 123 ) ) )
 

@@ -18,6 +18,16 @@ public interface ListNode extends Node {
             public Node car() { return head; }
             @Override
             public ListNode cdr() { return tail; }
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) return true;
+                if (!(o instanceof ListNode)) return false;
+                ListNode param = (ListNode) o;
+                Node paramHead = param.car();
+                if (head instanceof QuoteNode && paramHead instanceof QuoteNode)
+                    return head.equals(paramHead);
+                return (this != EMPTY_LIST || param != EMPTY_LIST) ? false : true; // 둘 중 하나라도 EMPTY가 아니면 false
+            }
         };
     }
 

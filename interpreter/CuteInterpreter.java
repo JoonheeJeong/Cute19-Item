@@ -165,22 +165,9 @@ public class CuteInterpreter {
                     return runFunction(operator, (ListNode) runExpr(car)); // item3 수정 필요
                 return runList((ListNode) car); // item3 수정 필요
             case EQ_Q:
-                car = operand.car();
-                Node first;
-                if (!(car instanceof ListNode))
-                    first = car; // IntNode 또는 IdNode
-                else
-                    first = runQuote((ListNode) car);
-                quotedList = (ListNode) stripList(operand.cdr());
-                Node second = runQuote(quotedList);
-
-                if (!second.getClass().equals(first.getClass())) // type이 다르면 false
-                    return BooleanNode.FALSE_NODE;
-                if (first instanceof ListNode) // 하나라도 List이면 false
-                    return BooleanNode.FALSE_NODE;
-                if (second instanceof IdNode || second instanceof IntNode) // Id이거나 Int일 경우 값이 같으면 true 아니면 false
-                    return second.equals(first) ? BooleanNode.TRUE_NODE : BooleanNode.FALSE_NODE;
-                return null;
+                Node first = eval(operand.car());
+                Node second = eval(operand.cdr().car());
+                return (first.equals(second)) ? BooleanNode.TRUE_NODE : BooleanNode.FALSE_NODE;
             case NOT: // operand는 List이고, 그 내용은 Boolean 또는 관계, 논리 연산
                 car = operand.car();
                 if (car instanceof BooleanNode) // Boolean이 List에 감싸져 있으면 벗겨서 함수 호출
@@ -198,7 +185,7 @@ public class CuteInterpreter {
                 second = operand.cdr().car();
                 if (!(first instanceof IdNode))
                     return null;
-                if (!(second instanceof ValueNode)) {
+                if (!(second instanceof ValueNode)) { // 수정 필요
                     if (!(second instanceof ListNode))
                         return null;
                     car = ((ListNode) second).car();
@@ -215,6 +202,28 @@ public class CuteInterpreter {
                 break;
         }
         return null;
+    }
+
+    private Node eval(Node operand) {
+        if (!(operand instanceof ListNode)) {
+            if (!(operand instanceof IdNode))
+                return operand;
+            return runExpr(operand);
+        }
+        Node car = ((ListNode) operand).car();
+        if (car instanceof IntNode || car instanceof BooleanNode) // error input
+            return null;
+        else if (car instanceof FunctionNode || car instanceof BinaryOpNode || car instanceof ListNode)
+            return runExpr(operand);
+        else if (car instanceof IdNode) {
+            car = runExpr(car);
+            ListNode cdr = ((ListNode) operand).cdr();
+            return runList(ListNode.cons(car, cdr));
+        }
+        else if (car instanceof QuoteNode)
+            return operand;
+        else
+            return null;
     }
 
     private BooleanNode revertBooleanNode(BooleanNode arg) {

@@ -51,4 +51,12 @@ public class FunctionNode implements Node {
     public String toString() {
         return funcType.name();
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof FunctionNode)) return false;
+        FunctionNode param = (FunctionNode) o;
+        return (param.funcType == param.funcType) ? true : false;
+    }
 }
