@@ -6,8 +6,7 @@ import parser.parse.*;
 import java.util.Scanner;
 
 public class CuteInterpreter {
-    private static final Node define = new Node() {
-    };
+    private static final Node PASS = new Node() {};
 
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
@@ -20,7 +19,7 @@ public class CuteInterpreter {
                 break;
             Node parseTree = new CuteParser(expr).parseExpr();
             Node resultNode = new CuteInterpreter().runExpr(parseTree);
-            if (resultNode == define)
+            if (resultNode == PASS)
                 continue;
             NodePrinter nodePrinter = new NodePrinter(resultNode);
             nodePrinter.prettyPrint();
@@ -164,12 +163,15 @@ public class CuteInterpreter {
                     return revertBooleanNode((BooleanNode) car);
                 return revertBooleanNode((BooleanNode) eval(operand)); // casting error => input error
             case COND:
-                Node temp = runExpr(operand.car());
+                Node temp = eval(operand.car());
                 if (temp instanceof ListNode) // 조건-실행 List 2개 이상
                     return cond(operand);
-                if (temp == BooleanNode.TRUE_NODE) // 조건-실행 List 1개
-                    return runExpr(operand.cdr().car());
-                return null; // error input 또는 단일 조건이 false라서 결과 없음.
+                if (temp == BooleanNode.FALSE_NODE)
+                    return PASS;
+                cdr = operand.cdr();
+                if (cdr == ListNode.EMPTY_LIST)
+                    return temp;
+                return condOneList(cdr); // 조건-실행 List 1개
             case DEFINE:
                 first = operand.car();
                 second = operand.cdr().car();
@@ -185,7 +187,7 @@ public class CuteInterpreter {
                     second = car;
                 }
                 ItemTable.put((IdNode) first, (ValueNode) second);
-                return define;
+                return PASS;
             default:
                 break;
         }
@@ -227,33 +229,31 @@ public class CuteInterpreter {
         return BooleanNode.TRUE_NODE;
     }
 
-    private Node cond(ListNode node) {
-        if (node == ListNode.EMPTY_LIST) // 정지 조건
-            return null;
-
-        ListNode cdr = node.cdr();
-        ListNode list = (ListNode) node.car();
-        BooleanNode testResult = evalTest(list.car()); // test의 결과를 Boolean으로 한정
-
-        if (testResult == BooleanNode.FALSE_NODE) // 조건 결과가 false이면 다음 리스트로 진행
-            return cond(cdr);
-
-        Node then = list.cdr().car();
-        return runExpr(then); // then 수행
+    // return Last Node
+    private Node lastNode(ListNode listNode) {
+        if (listNode.cdr() == ListNode.EMPTY_LIST)
+            return eval(listNode.car());
+        return lastNode(listNode.cdr());
     }
 
-    private BooleanNode evalTest(Node test) {
-        if (test instanceof BooleanNode)
-            return (BooleanNode) test;
+    private Node condOneList(ListNode listNode) {
+        Node evalResult = eval(listNode.car());
+        if (evalResult == BooleanNode.FALSE_NODE)  // 단일 리스트에서 첫 노드의 결과값이 false이면
+            return PASS;                           // 이 리스트에 해당하는 cond 결과값 없음
+        if (listNode.cdr() == ListNode.EMPTY_LIST) // 첫노드의 결과값이 true이거나 다른 노드일 때,
+            return evalResult;                     // 리스트의 원소가 하나이면 바로 리턴
+        return lastNode(listNode.cdr());           // 리스트의 원소가 둘 이상이면 마지막 노드 리턴
+    }
 
-        if (!(test instanceof ListNode)) // error input
-            return null;
-        ListNode listTest = (ListNode) test;
+    private Node cond(ListNode lists) {
+        if (lists == ListNode.EMPTY_LIST) // 모든 리스트에 대해 false일 경우 PASS 리턴
+            return PASS;
 
-        // 밑의 결과에서 casting error가 발생하면 input error
-        if (listTest.car() instanceof BinaryOpNode) // 관계 또는 논리 연산 수행
-            return (BooleanNode) runBinary(listTest);
-        return (BooleanNode) runList(listTest); // test가 중첩 리스트이면 runList 호출
+        ListNode cdr = lists.cdr();
+        ListNode listNode = (ListNode) lists.car(); // casting error => error input
+
+        Node evalList = condOneList(listNode);
+        return (evalList == PASS) ? cond(cdr) : evalList;
     }
 
     // ListNode의 tail은 항상 List이므로 이를 벗기는 역할을 한다.
