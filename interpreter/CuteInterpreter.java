@@ -73,25 +73,41 @@ public class CuteInterpreter {
             case CAR: // 기본 피연산자는 QuotedList(List > Quote > List)
                 Node car = operand.car();
                 if (car instanceof QuoteNode) {
-                    ListNode quote = (ListNode) runQuote(operand); // casting error => wrong input
-                    Node caar = quote.car();
-                    if (caar instanceof ListNode)
-                        return ListNode.cons(new QuoteNode(caar), ListNode.EMPTY_LIST);
-                    if (caar instanceof IdNode)
-                        return runExpr(caar);
-                    return caar;
+                    Node temp = runQuote(operand);
+                    if (!(temp instanceof ListNode)) {
+                        errorLog("[ERROR] CAR can evaluate for Quoted List");
+                        return null;
+                    }
+                    ListNode quoteInside = (ListNode) temp;
+                    if (quoteInside == ListNode.EMPTY_LIST) {
+                        errorLog("[ERROR] CAR can evaluate for Quoted List");
+                        return null;
+                    }
+                    Node caar = quoteInside.car();
+                    if (caar instanceof IntNode || car instanceof BooleanNode)
+                        return caar;
+                    return ListNode.cons(new QuoteNode(caar), ListNode.EMPTY_LIST);
                 }
                 if (car instanceof IdNode)
-                    return runFunction(operator, (ListNode) runExpr(car)); // casting error => wrong input
+                    return runFunction(operator, (ListNode) runExpr(car));     // casting error => wrong input
                 return runFunction(operator, (ListNode) runList(operand)); // casting error => wrong input
-            case CDR:
+            case CDR: // 기본 피연산자는 QuotedList(List > Quote > List)
                 car = operand.car();
                 if (car instanceof QuoteNode) {
-                    ListNode quote = (ListNode) runQuote(operand); // casting error => wrong input
-                    return ListNode.cons(new QuoteNode(quote.cdr()), ListNode.EMPTY_LIST);
+                    Node temp = runQuote(operand);
+                    if (!(temp instanceof ListNode)) {
+                        errorLog("[ERROR] CDR can evaluate for Quoted List");
+                        return null;
+                    }
+                    ListNode quoteInside = (ListNode) temp;
+                    if (quoteInside == ListNode.EMPTY_LIST) {
+                        errorLog("[ERROR] CDR can evaluate for Quoted List");
+                        return null;
+                    }
+                    return ListNode.cons(new QuoteNode(quoteInside.cdr()), ListNode.EMPTY_LIST);
                 }
                 if (car instanceof IdNode)
-                    return runFunction(operator, (ListNode) runExpr(car)); // casting error => wrong input
+                    return runFunction(operator, (ListNode) runExpr(car));     // casting error => wrong input
                 return runFunction(operator, (ListNode) runList(operand)); // casting error => wrong input
             case CONS: // second operand의 결과값은 항상 QuotedList로 가정
                 Node temp = runExpr(operand.car());
