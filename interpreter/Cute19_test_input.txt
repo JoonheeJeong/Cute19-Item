@@ -1,6 +1,6 @@
-( define a + ) // 해결 필요
+( define a + )
 
-( car ( car ' ( ( 1 2 ) 3 ) ) )Z
+( car ( car ' ( ( 1 2 ) 3 ) ) )
 1
 ( cons ( car ' ( ( 1 2 ) 3 ) ) ' ( 3 4 ) )
 
@@ -12,19 +12,23 @@
 
 *( car id )
 ( car a )
+value of a
+
 *( car quotedList )
 ( car ' ( 1 2 ) )
 1
 ( car ' ( a 3 ) )
 value of a
+
 *( car NestedList ) // item 3
 ( car ( car ' ( ( 1 2 ) 3 ) ) )
 1
 ( car ( car ' ( ( a ) 3 ) ) )
-value a
-( ( car ( car ' ( ( a ) 3 ) ) ) ' ( ( a ) ) ) // a == car
+value of a
+( ( car ( car ' ( ( a ) 3 ) ) ) ' ( a ) ) // a == car
 value of a => car
 
+( define a ' ( ( 1 2 ) 3 ( 4 5 ) ) )
 ( cons a '( 6 7 ) )
 ' ( ( ( 1 2 ) 3 ( 4 5 ) ) 6 7 )
 ( cons ' ( ) ' ( ) )
@@ -52,6 +56,9 @@ value of a => car
 #F
 ( null? null? )
 #F
+( define f + )
+( null? ( ( car ' ( f 2 ) ) 3 4 ) ) // item3
+7
 
 ( atom? ' c )
 #T
@@ -81,6 +88,7 @@ value of a => car
 ( define c ( * 2 4 ) )
 ( define d ( car ' ( 1 2 ) ) )
 ( define e ' ( 1 2 ) )
+( define f cond )
 ( define f + )
 ( eq? b ' ( ) )
 #T
@@ -102,11 +110,11 @@ value of a => car
 #F
 ( eq? ' ( a b ) ' ( a b ) )
 #F
-( eq? ( car a ) ( car ' ( 1 7 8 ) ) )
+( eq? ( car e ) ( car ' ( 1 7 8 ) ) )
 #T
 ( eq? ( car e ) ( car ' ( 1 2 ) ) )
 #T
-( eq? ( car ( car a ) ) car ' ( 1 2 ) ) // 디버깅 필요 item 3
+( eq? ( car ( car a ) ) ( car e ) ) // 디버깅 필요 item 3
 #T
 
 ( define a ( < 1 2 ) )
@@ -133,49 +141,63 @@ b => '( 1 2 3 )
 
 
 ( car ' ( 2 3 4 ) )
-
+2
 ( car ' ( ( 2 3 ) ( 4 5 ) 6 ) )
-
+'( 2 3 )
 ( cdr ' ( 2 3 4 ) )
-
+'( 3 4 )
 ( cdr ' ( ( 2 3 ) ( 4 5 ) 6 ) )
-
+'( ( 4 5 ) 6 )
 ( cdr ' ( 2 ) )
-
+'( )
 ( cons 1 ' ( 2 3 4 ) )
-
+'( 1 2 3 4 )
 ( cons ' ( 2 3 ) ' ( 4 5 6 ) )
-
+'( ( 2 3 ) 4 5 6 )
 ( cons 2 ' ( ) )
-
+'( 2 )
 ( null? ' ( ) )
-
+#T
 ( null? ' ( 1 2 ) )
-
+#F
 ( null? ' ( ( ) ) )
-
+#F
 ( atom? ' a )
-
+#T
 ( atom? ' ( 1 2 ) )
-
+#F
 ( atom? ' ( ) )
-
+#T
 ( eq? ' a ' a )
-
+#T
 ( eq? ' a ' b )
-
+#F
 ( eq? ' ( a b ) ' ( a b ) )
-
+#F
 ( + 1 2 )
-
+3
 ( + ( + 1 2 ) 3 )
-
+6
 ( > 1 5 )
-
+#F
 ( > ( + 9 3 ) 5 )
-
+#T
 ( not #F )
-
+#T
 ( not ( < 1 2 ) )
+#F
+( cond ( ( > 1 2 ) 0 ) ( #T 1 ) )
+1
 
-( cond ( ( < 1 2 ) 0 ) ( #T 1 ) )
+( define a + )
+( define b 1 )
+( define c 3 )
+( a ( car ' ( b 2 ) ) c )
+
+( define a 0 )
+( define b 1 )
+( define c 2 )
+( cond ( + a b c ) ( #T b ) )
+( cond ( ( > 1 2 ) a ) )
+( cond ( ( eq? a b ) a b c ) ( #T b ) )
+( cond ( #F 3 ) ( ( 2 3 ) 4 ) )

@@ -14,18 +14,6 @@ public class ItemTable {
     }
 
     public static ValueNode get(IdNode key) {
-/*
-        for (Map.Entry<IdNode, ValueNode> entry : storage.entrySet()) {
-        IdNode innerKey = entry.getKey();
-        System.out.println("innerKey.hashCode(): " + innerKey.hashCode());
-        System.out.println("key.hashCode(): " + innerKey.hashCode());
-        if (entry.getKey().equals(key))
-        System.out.println(key + " yes");
-        else
-        System.out.println(key + " no");
-        }
-        boolean a = storage.containsKey(key);
-*/
         ValueNode result = storage.get(key);
         return result;
     }

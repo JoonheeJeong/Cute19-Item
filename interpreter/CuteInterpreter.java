@@ -37,9 +37,13 @@ public class CuteInterpreter {
             return null;
         if (rootExpr instanceof IdNode) {
             Node value = ItemTable.get((IdNode) rootExpr);
+            if (value == null) {
+                errorLog("[ERROR] \"" + rootExpr + "\" is undefined.");
+                return null;
+            }
             if (value instanceof QuoteNode)
                 value = ListNode.cons(value, ListNode.EMPTY_LIST);
-            return runExpr(value);
+            return value;
         }
         if (rootExpr instanceof ValueNode)
             return rootExpr;
@@ -51,23 +55,25 @@ public class CuteInterpreter {
 
     private Node runList(ListNode list) {
         Node car = list.car();
-        if (list.equals(ListNode.EMPTY_LIST))
+        if (list == ListNode.EMPTY_LIST || car instanceof QuoteNode)
+            return list;
+        if (car instanceof IntNode || car instanceof BooleanNode) // cond에서만 사용
             return list;
         if (car instanceof FunctionNode)
             return runFunction((FunctionNode) car, (ListNode) stripList(list.cdr()));
         if (car instanceof BinaryOpNode)
             return runBinary(list);
-        return list;
+        if (car instanceof IdNode)
+            return runList(ListNode.cons(runExpr(car), list.cdr()));
+        return runList(ListNode.cons(runList((ListNode) car), list.cdr())); // ListNode
     }
 
     private Node runFunction(FunctionNode operator, ListNode operand) {
         switch (operator.funcType) {
-            case CAR:
-                if (operand.cdr() != ListNode.EMPTY_LIST)
-                    return null;
+            case CAR: // 기본 피연산자는 QuotedList(List > Quote > List)
                 Node car = operand.car();
                 if (car instanceof QuoteNode) {
-                    ListNode quote = (ListNode) runQuote(operand); // if casting error, error input
+                    ListNode quote = (ListNode) runQuote(operand); // casting error => wrong input
                     Node caar = quote.car();
                     if (caar instanceof ListNode)
                         return ListNode.cons(new QuoteNode(caar), ListNode.EMPTY_LIST);
@@ -75,40 +81,27 @@ public class CuteInterpreter {
                         return runExpr(caar);
                     return caar;
                 }
-                Node newOperand;
-                if (car instanceof IdNode) {
-                    newOperand = runExpr(car);
-                    return runFunction(operator, (ListNode) newOperand); // if casting error, wrong input
-                }
-                return null; // operand가 중첩 리스트일 때, 일단 null.
+                if (car instanceof IdNode)
+                    return runFunction(operator, (ListNode) runExpr(car)); // casting error => wrong input
+                return runFunction(operator, (ListNode) runList(operand)); // casting error => wrong input
             case CDR:
-                if (operand.cdr() != ListNode.EMPTY_LIST)
-                    return null;
                 car = operand.car();
                 if (car instanceof QuoteNode) {
-                    ListNode quote = (ListNode) runQuote(operand); // if casting error, wrong input
-                    ListNode cdar = quote.cdr();
-                    return ListNode.cons(new QuoteNode(cdar), ListNode.EMPTY_LIST);
+                    ListNode quote = (ListNode) runQuote(operand); // casting error => wrong input
+                    return ListNode.cons(new QuoteNode(quote.cdr()), ListNode.EMPTY_LIST);
                 }
-                if (car instanceof IdNode) {
-                    newOperand = runExpr(car);
-                    return runFunction(operator, (ListNode) newOperand); // if casting error, wrong input
-                }
-                return null; // operand가 중첩 리스트일 때, 일단 null.
-            case CONS:
-                ListNode cdr = operand.cdr();
-                ListNode quotedList = (ListNode) stripList(cdr); // error나면 input error
-                ListNode tail = (ListNode) runQuote(quotedList); // tail은 항상 quoted
-
-                Node head = stripQuotedList(eval(operand.car()));
-                return (head == null || tail == null) ? null
-                        : ListNode.cons(new QuoteNode(ListNode.cons(head, tail)), ListNode.EMPTY_LIST);
+                if (car instanceof IdNode)
+                    return runFunction(operator, (ListNode) runExpr(car)); // casting error => wrong input
+                return runFunction(operator, (ListNode) runList(operand)); // casting error => wrong input
+            case CONS: // second operand의 결과값은 항상 QuotedList로 가정
+                Node temp = runExpr(operand.car());
+                Node head = stripQuotedList(temp);
+                temp = runExpr(operand.cdr().car());
+                ListNode tail = (ListNode) stripQuotedList(temp); // casting error => wrong input
+                return ListNode.cons(new QuoteNode(ListNode.cons(head, tail)), ListNode.EMPTY_LIST);
             case NULL_Q: // operand가 List로 들어와야 함.
                 car = operand.car();
-                cdr = operand.cdr();
-                if (car instanceof IntNode)
-                    return BooleanNode.FALSE_NODE;
-                if (car instanceof BooleanNode)
+                if (car instanceof IntNode || car instanceof BooleanNode)
                     return BooleanNode.FALSE_NODE;
                 if (car instanceof QuoteNode) {
                     Node quote = runQuote(operand); // List가 아닐 수도 있다. ( null? ' c ) => #F
@@ -117,22 +110,18 @@ public class CuteInterpreter {
                     return BooleanNode.FALSE_NODE;
                 }
                 if (car instanceof FunctionNode || car instanceof BinaryOpNode) {
-                    if (cdr == ListNode.EMPTY_LIST)
+                    if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( null? func ), ( null? op )
                         return BooleanNode.FALSE_NODE;
-                    Node evalResult = runExpr(operand);
-                    if (evalResult instanceof ListNode)
-                        return runFunction(operator, (ListNode) evalResult); // item3 수정 필요
-                    return runFunction(operator, ListNode.cons(evalResult, ListNode.EMPTY_LIST)); // item3 수정 필요
                 }
-                if (car instanceof IdNode)
-                    return runFunction(operator, ListNode.cons(runExpr(car), ListNode.EMPTY_LIST));
-                return runFunction(operator, ListNode.cons(stripQuotedList(eval(operand)), ListNode.EMPTY_LIST));
+                if (car instanceof IdNode) {
+                    if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( null? id )
+                        return runFunction(operator, getIdOperand((IdNode) car));
+                }
+                Node subResult = runList(operand); // operand 내용이 List
+                return runFunction(operator, ListNode.cons(subResult, ListNode.EMPTY_LIST));
             case ATOM_Q: // only one operand
                 car = operand.car();
-                cdr = operand.cdr();
-                if (car instanceof IntNode)
-                    return BooleanNode.TRUE_NODE;
-                if (car instanceof BooleanNode)
+                if (car instanceof IntNode || car instanceof BooleanNode)
                     return BooleanNode.TRUE_NODE;
                 if (car instanceof QuoteNode) {
                     Node quote = runQuote(operand); // List가 아닐 수도 있다. ( atom? ' c ) => #T
@@ -143,42 +132,50 @@ public class CuteInterpreter {
                     return BooleanNode.TRUE_NODE;
                 }
                 if (car instanceof FunctionNode || car instanceof BinaryOpNode) {
-                    if (cdr == ListNode.EMPTY_LIST)
+                    if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( atom? func ), ( atom? op )
                         return BooleanNode.TRUE_NODE;
-                    Node evalResult = runExpr(operand);
-                    if (evalResult instanceof ListNode)
-                        return runFunction(operator, (ListNode) evalResult); // item3 수정 필요
-                    return runFunction(operator, ListNode.cons(evalResult, ListNode.EMPTY_LIST)); // item3 수정 필요
                 }
-                if (car instanceof IdNode)
-                    return runFunction(operator, ListNode.cons(runExpr(car), ListNode.EMPTY_LIST));
-                return runFunction(operator, ListNode.cons(stripQuotedList(eval(operand)), ListNode.EMPTY_LIST));
+                if (car instanceof IdNode) {
+                    if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( atom? id )
+                        return runFunction(operator, getIdOperand((IdNode) car));
+                }
+                subResult = runList(operand); // operand 내용이 List
+                return runFunction(operator, ListNode.cons(subResult, ListNode.EMPTY_LIST));
             case EQ_Q:
-                Node first = eval(operand.car());
-                Node second = eval(operand.cdr().car());
+                Node first = runExpr(operand.car());
+                Node second = runExpr(operand.cdr().car());
                 return (first.equals(second)) ? BooleanNode.TRUE_NODE : BooleanNode.FALSE_NODE;
             case NOT: // operand는 List이고, 그 내용은 Boolean 또는 관계, 논리 연산
                 car = operand.car();
                 if (car instanceof BooleanNode) // Boolean이 List에 감싸져 있으면 벗겨서 함수 호출
                     return revertBooleanNode((BooleanNode) car);
-                return revertBooleanNode((BooleanNode) eval(operand)); // casting error => input error
+                if (car instanceof IntNode || car instanceof QuoteNode)
+                    return BooleanNode.FALSE_NODE;
+                if (car instanceof FunctionNode || car instanceof BinaryOpNode) {
+                    if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( not func ), ( not op )
+                        return BooleanNode.FALSE_NODE;
+                }
+                if (car instanceof IdNode)
+                    return runFunction(operator, getIdOperand((IdNode) car));
+                subResult = runList(operand);
+                return runFunction(operator, ListNode.cons(subResult, ListNode.EMPTY_LIST));
             case COND:
-                Node temp = eval(operand.car());
+                temp = runExpr(operand.car());
                 if (temp instanceof ListNode) // 조건-실행 List 2개 이상
                     return cond(operand);
                 if (temp == BooleanNode.FALSE_NODE)
                     return PASS;
-                cdr = operand.cdr();
+                ListNode cdr = operand.cdr();
                 if (cdr == ListNode.EMPTY_LIST)
                     return temp;
                 return condOneList(cdr); // 조건-실행 List 1개
             case DEFINE:
                 first = operand.car();
                 second = operand.cdr().car();
-                if (!(first instanceof IdNode))
+                if (!(first instanceof IdNode)) // error
                     return null;
-                second = eval(second);
-                if (second == null)
+                second = runExpr(second);
+                if (second == null) // error
                     return null;
                 if (second instanceof ListNode) {
                     car = ((ListNode) second).car();
@@ -194,33 +191,10 @@ public class CuteInterpreter {
         return null;
     }
 
-    private Node eval(Node operand) {
-        if (operand == null) // error
-            return null;
-        if (!(operand instanceof ListNode)) {
-            if (!(operand instanceof IdNode))
-                return operand;
-            return runExpr(operand);
-        }
-        Node car = ((ListNode) operand).car();
-        if (car == null) // EMPTY_LIST
-            return operand;
-        if (car instanceof IntNode || car instanceof BooleanNode) // error input
-            return null;
-        if (car instanceof FunctionNode || car instanceof BinaryOpNode || car instanceof ListNode)
-            return runExpr(operand);
-        if (car instanceof IdNode) {
-            car = runExpr(car);
-            if (car == null) // error input
-                return null;
-            ListNode cdr = ((ListNode) operand).cdr();
-            if (cdr == ListNode.EMPTY_LIST)
-                return car;
-            return runList(ListNode.cons(car, cdr)); // 리스트 뒷부분 eval 후에 List로 합쳐서 다시 eval
-        }
-        if (car instanceof QuoteNode)
-            return operand;
-        return null;
+    private ListNode getIdOperand(IdNode idNode) {
+        Node value = runExpr(idNode);
+        return (value instanceof ListNode)
+                ? (ListNode) value : ListNode.cons(value, ListNode.EMPTY_LIST);
     }
 
     private BooleanNode revertBooleanNode(BooleanNode arg) {
@@ -232,17 +206,17 @@ public class CuteInterpreter {
     // return Last Node
     private Node lastNode(ListNode listNode) {
         if (listNode.cdr() == ListNode.EMPTY_LIST)
-            return eval(listNode.car());
+            return runExpr(listNode.car());
         return lastNode(listNode.cdr());
     }
 
     private Node condOneList(ListNode listNode) {
-        Node evalResult = eval(listNode.car());
+        Node evalResult = runExpr(listNode.car());
         if (evalResult == BooleanNode.FALSE_NODE)  // 단일 리스트에서 첫 노드의 결과값이 false이면
             return PASS;                           // 이 리스트에 해당하는 cond 결과값 없음
         if (listNode.cdr() == ListNode.EMPTY_LIST) // 첫노드의 결과값이 true이거나 다른 노드일 때,
-            return evalResult;                     // 리스트의 원소가 하나이면 바로 리턴
-        return lastNode(listNode.cdr());           // 리스트의 원소가 둘 이상이면 마지막 노드 리턴
+            return evalResult;                     // 리스트의 원소가 하나가 남으면 바로 리턴
+        return lastNode(listNode.cdr());           // 리스트의 원소가 둘 이상이면 나머지 부분으로 재귀 호출
     }
 
     private Node cond(ListNode lists) {
@@ -263,25 +237,26 @@ public class CuteInterpreter {
         return node;
     }
 
-    private IntNode getIntNodeOperand(Node subRoot) {
-        if (subRoot == null) // error input
+    private IntNode getIntOperand(Node operand) {
+        if (operand == null) // error input
             return null;
 
-        if (!(subRoot instanceof IntNode || subRoot instanceof ListNode)) // error input
+        if (operand instanceof IntNode)        // 정지조건
+            return (IntNode) operand;          // casting error => input error
+        if (operand instanceof IdNode)
+            return (IntNode) runExpr(operand); // casting error => input error
+        if (!(operand instanceof ListNode)) {
+            errorLog("[ERROR] NaN");
             return null;
-
-        if (subRoot instanceof IntNode) // 정지조건
-            return (IntNode) subRoot;
-
-        ListNode listSubRoot = (ListNode) subRoot;
-        Node car = listSubRoot.car();
-        // 각각 IntNode가 아닐 경우 error input.
-        // 올바른 input이면 위의 정지조건에 따라 호출 메소드 runBinary()에서 연산이 이루어진다.
+        }
+        ListNode listOperand = (ListNode) operand;
+        Node car = listOperand.car();
         if (car instanceof BinaryOpNode)
-            return (IntNode) runBinary(listSubRoot);
-        if (car instanceof ListNode)
-            return (IntNode) runList(listSubRoot);
-        return null; // error input
+            return (IntNode) runBinary(listOperand); // casting error => input error
+        if (car instanceof FunctionNode || car instanceof ListNode || car instanceof IdNode)
+            return (IntNode) runList(listOperand);   // casting error => input error
+        errorLog("[ERROR] NaN");
+        return null;
     }
 
     private Node runBinary(ListNode list) {
@@ -289,8 +264,8 @@ public class CuteInterpreter {
 
         ListNode cdr = list.cdr();
 
-        IntNode firstOperand = getIntNodeOperand(cdr.car());
-        IntNode secondOperand = getIntNodeOperand(cdr.cdr().car());
+        IntNode firstOperand = getIntOperand(cdr.car());
+        IntNode secondOperand = getIntOperand(cdr.cdr().car());
 
         if (firstOperand == null || secondOperand == null) // error input
             return null;

@@ -26,7 +26,7 @@ public interface ListNode extends Node {
                 Node paramHead = param.car();
                 if (head instanceof QuoteNode && paramHead instanceof QuoteNode)
                     return head.equals(paramHead);
-                return (this != EMPTY_LIST || param != EMPTY_LIST) ? false : true; // 둘 중 하나라도 EMPTY가 아니면 false
+                return (this == EMPTY_LIST && param == EMPTY_LIST) ? true : false;
             }
         };
     }
