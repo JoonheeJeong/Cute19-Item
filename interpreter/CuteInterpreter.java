@@ -129,7 +129,23 @@ public class CuteInterpreter {
         if (operator.funcType == EQ_Q)
             return (first.equals(second)) ? BooleanNode.TRUE_NODE : BooleanNode.FALSE_NODE;
         if (operator.funcType == CONS) {
-            Node head = stripQuotedList(first);
+            Node head;
+            if (!(first instanceof ListNode))
+                head = first;
+            else {
+                ListNode listResult = (ListNode) first;
+                Node car = listResult.car();
+                if (!(car instanceof QuoteNode)) {
+                    errorLog("[ERROR] unquoted List: not allowed as operand");
+                    return null;
+                }
+                head = ((QuoteNode) car).nodeInside();
+            }
+
+            if (!isQuote(second)) {
+                errorLog("[ERROR] In CONS, Second Operand must be Quoted List");
+                return null;
+            }
             Node tail = stripQuotedList(second);
             if (!(tail instanceof ListNode)) {
                 errorLog("[ERROR] In CONS, Second Operand must be Quoted List");
@@ -154,12 +170,16 @@ public class CuteInterpreter {
         Node car = null;
         if (realOperand instanceof ListNode) {
             ListNode listOperand = (ListNode) realOperand;
-            car = listOperand.car();
-            if (!(car instanceof QuoteNode)) {
-                Node subResult = runList(listOperand);
-                if (subResult == null)
-                    return null;
+            Node subResult = runList(listOperand);
+            if (subResult == null)
+                return null;
+            if (!(subResult instanceof ListNode))
                 return runFunction(operator, ListNode.cons(subResult, ListNode.EMPTY_LIST));
+            ListNode listResult = (ListNode) subResult;
+            car = listResult.car();
+            if (!(car instanceof QuoteNode)) {
+                errorLog("[ERROR] unquoted List: not allowed as operand");
+                return null;
             }
             innerNode = ((QuoteNode) car).nodeInside();
         }

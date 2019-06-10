@@ -107,7 +107,7 @@ value of a
 #T
 ( eq? ( car e ) ( car ' ( 1 2 ) ) )
 #T
-( eq? ( car ( car a ) ) ( car e ) ) // 디버깅 필요 item 3
+( eq? ( car ( car a ) ) ( car e ) )
 #T
 
 ( define a ( < 1 2 ) )
@@ -228,6 +228,6 @@ b => '( 1 2 3 )
 ( car ( cons ( define plus1 ( lambda ( x ) ( + 1 x ) ) ) ( plus1 3 ) ' ( 5 6 ) ) )
 
 ( cons ( ( define plus1 ( lambda ( x ) ( + 1 x ) ) ) ( plus1 3 ) ) ' ( 5 6 ) )
-( cons ( (  ) ( plus1 3 ) ) ' ( 5 6 ) )
+( cons ( ( ) ( plus1 3 ) ) ' ( 5 6 ) )
 
 ( cond ( ( define plus1 ( lambda ( x ) ( + 1 x ) ) ) ( define x 20190610 ) ( plus1 x ) ) )
