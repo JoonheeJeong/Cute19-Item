@@ -3,6 +3,8 @@ package interpreter;
 import parser.ast.*;
 import parser.parse.*;
 
+import static parser.ast.FunctionNode.FunctionType.LAMBDA;
+
 import java.util.Scanner;
 
 public class CuteInterpreter {
@@ -42,8 +44,11 @@ public class CuteInterpreter {
                 errorLog("[ERROR] \"" + rootExpr + "\" is undefined.");
                 return null;
             }
-            if (value instanceof QuoteNode)
-                value = ListNode.cons(value, ListNode.EMPTY_LIST);
+            if (value instanceof QuoteNode) {
+                Node quoteInside = ((QuoteNode) value).nodeInside();
+                value = (isLambdaExpr(quoteInside))
+                        ? quoteInside : ListNode.cons(value, ListNode.EMPTY_LIST);
+            }
             return value;
         }
         if (rootExpr instanceof ValueNode)
@@ -60,14 +65,29 @@ public class CuteInterpreter {
         Node car = list.car();
         if (car == ListNode.EMPTY_LIST)
             return list;
-        if (car instanceof FunctionNode)
+        if (car instanceof FunctionNode) {
+            if (((FunctionNode) car).funcType == LAMBDA)
+                return list;
             return runFunction((FunctionNode) car, (ListNode) stripList(list.cdr()));
+        }
         if (car instanceof BinaryOpNode)
             return runBinary(list);
         if (car instanceof IdNode)
             return runList(ListNode.cons(runExpr(car), list.cdr()));
-        if (car instanceof ListNode)
-            return runList(ListNode.cons(runList((ListNode) car), list.cdr()));
+        if (car instanceof ListNode) {
+            Node caar = ((ListNode) car).car();
+            if (!(caar instanceof FunctionNode && ((FunctionNode) caar).funcType == LAMBDA))
+                return runList(ListNode.cons(runList((ListNode) car), list.cdr()));
+            Node lambdaFunction = testLambdaExpr(((ListNode) car).cdr());
+            if (lambdaFunction == null)
+                return null;
+            IdNode formalParameter = (IdNode) ((ListNode) lambdaFunction).car();
+            ListNode body = ((ListNode) lambdaFunction).cdr();
+            Node actualParam = testLambdaActualParam(list.cdr());
+            if (actualParam == null)
+                return null;
+            return runLambda(formalParameter, body, (IntNode) actualParam);
+        }
         return list;
     }
 
@@ -196,7 +216,9 @@ public class CuteInterpreter {
                 second = runExpr(second);
                 if (second == null) // error
                     return null;
-                if (second instanceof ListNode) {
+                if (isLambdaExpr(second))
+                    second = new QuoteNode(second);
+                else if (second instanceof ListNode) {
                     car = ((ListNode) second).car();
                     if (!(car instanceof QuoteNode)) // eval의 결과인 List가 quote가 아니면 error
                         return null;
@@ -208,6 +230,58 @@ public class CuteInterpreter {
                 break;
         }
         return null;
+    }
+
+    private boolean isLambdaExpr(Node node) {
+        if (!(node instanceof ListNode))
+            return false;
+        Node car = ((ListNode) node).car();
+        if (!(car instanceof FunctionNode))
+            return false;
+        if (((FunctionNode) car).funcType == LAMBDA)
+            return true;
+        return false;
+    }
+
+    private Node testLambdaExpr(ListNode lambdaExpr) {
+        Node car = lambdaExpr.car();
+        if (!(car instanceof ListNode))
+            return null;
+        Node formalParam = ((ListNode) car).car();
+        if (!(formalParam instanceof IdNode) || ((ListNode) car).cdr() != ListNode.EMPTY_LIST) {
+            errorLog("[ERROR] lambda formal parameter must be an Item");
+            return null;
+        }
+        ListNode cdr = lambdaExpr.cdr();
+        Node body = stripList(cdr);
+        if (!(body instanceof ListNode) || cdr.cdr() != ListNode.EMPTY_LIST) {
+            errorLog("[ERROR] lambda body must be a List");
+            return null;
+        }
+        return ListNode.cons(formalParam, (ListNode) body);
+    }
+
+    private Node testLambdaActualParam(ListNode back) {
+        Node actualParam = back.car();
+        if (actualParam instanceof IdNode)
+            actualParam = runExpr(actualParam);
+        if (!(actualParam instanceof IntNode)) {
+            errorLog("[ERROR] Value of lambda actual parameter must be an Integer");
+            return null;
+        }
+        if (back.cdr() != ListNode.EMPTY_LIST) {
+            errorLog("[ERROR] lambda actual parameter must be an Number or Item");
+            return null;
+        }
+        return actualParam;
+    }
+
+    private Node runLambda(IdNode formalParam, ListNode body, IntNode actualParam) {
+        ItemTableManager.push(new ItemTable());
+        ItemTableManager.insertItem(formalParam, actualParam);
+        Node result = runList(body);
+        ItemTableManager.pop();
+        return result;
     }
 
     private ListNode getIdOperand(IdNode idNode) {

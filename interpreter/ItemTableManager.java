@@ -12,6 +12,10 @@ class ItemTableManager {
         stack.push(itemTable);
     }
 
+    static void pop() {
+        stack.pop();
+    }
+
     static void insertItem(IdNode key, ValueNode value) {
         if(stack.empty())
             System.out.println("ItemTableStack is empty");

@@ -201,3 +201,17 @@ b => '( 1 2 3 )
 ( cond ( ( > 1 2 ) a ) )
 ( cond ( ( eq? a b ) a b c ) ( #T b ) )
 ( cond ( #F 3 ) ( ( 2 3 ) 4 ) )
+
+( lambda ( x ) ( + 1 x ) )
+( ( lambda ( x ) ( + 1 x ) ) 2 )
+( define x 5 )
+( define a 7 )
+( define plusA ( lambda ( x ) ( + x a ) ) )
+
+( define plus1 ( lambda ( x ) ( + x 1 ) ) )
+( plus1 3)
+4
+( define plus2 ( lambda ( x ) ( + ( plus1 x ) 1 ) ) )
+( plus2 3 )
+5
+( define cube ( lambda ( n ) ( define sqrt ( lambda ( n ) ( * n n ) ) ) ( * ( sqrt n ) n ) ) )
