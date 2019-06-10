@@ -3,7 +3,7 @@ package interpreter;
 import parser.ast.*;
 import parser.parse.*;
 
-import static parser.ast.FunctionNode.FunctionType.LAMBDA;
+import static parser.ast.FunctionNode.FunctionType.*;
 
 import java.util.Scanner;
 
@@ -66,8 +66,11 @@ public class CuteInterpreter {
         if (car == ListNode.EMPTY_LIST)
             return list;
         if (car instanceof FunctionNode) {
-            if (((FunctionNode) car).funcType == LAMBDA)
+            FunctionNode.FunctionType funcType = ((FunctionNode) car).funcType;
+            if (funcType == LAMBDA)
                 return list;
+            if (funcType == COND)
+                return runCond(list.cdr());
             return runFunction((FunctionNode) car, (ListNode) stripList(list.cdr()));
         }
         if (car instanceof BinaryOpNode)
@@ -76,150 +79,145 @@ public class CuteInterpreter {
             return runList(ListNode.cons(runExpr(car), list.cdr()));
         if (car instanceof ListNode) {
             if (isLambdaExpr(car))
-                return runLambdaExpr(list);
+                return runLambda(list);
             return runList(ListNode.cons(runList((ListNode) car), list.cdr()));
         }
         return list;
     }
 
     private Node runFunction(FunctionNode operator, ListNode operand) {
-        switch (operator.funcType) {
-            case CAR: // 기본 피연산자는 QuotedList(List > Quote > List)
-                Node car = operand.car();
-                if (car instanceof QuoteNode) {
-                    Node temp = runQuote(operand);
-                    if (!(temp instanceof ListNode)) {
-                        errorLog("[ERROR] CAR can evaluate for Quoted List");
-                        return null;
-                    }
-                    ListNode quoteInside = (ListNode) temp;
-                    if (quoteInside == ListNode.EMPTY_LIST) {
-                        errorLog("[ERROR] CAR can evaluate for Quoted List");
-                        return null;
-                    }
-                    Node caar = quoteInside.car();
-                    if (caar instanceof IntNode || caar instanceof BooleanNode)
-                        return caar;
-                    return ListNode.cons(new QuoteNode(caar), ListNode.EMPTY_LIST);
-                }
-                if (car instanceof IdNode)
-                    return runFunction(operator, (ListNode) runExpr(car));     // casting error => wrong input
-                return runFunction(operator, (ListNode) runList(operand)); // casting error => wrong input
-            case CDR: // 기본 피연산자는 QuotedList(List > Quote > List)
-                car = operand.car();
-                if (car instanceof QuoteNode) {
-                    Node temp = runQuote(operand);
-                    if (!(temp instanceof ListNode)) {
-                        errorLog("[ERROR] CDR can evaluate for Quoted List");
-                        return null;
-                    }
-                    ListNode quoteInside = (ListNode) temp;
-                    if (quoteInside == ListNode.EMPTY_LIST) {
-                        errorLog("[ERROR] CDR can evaluate for Quoted List");
-                        return null;
-                    }
-                    return ListNode.cons(new QuoteNode(quoteInside.cdr()), ListNode.EMPTY_LIST);
-                }
-                if (car instanceof IdNode)
-                    return runFunction(operator, (ListNode) runExpr(car));     // casting error => wrong input
-                return runFunction(operator, (ListNode) runList(operand)); // casting error => wrong input
-            case CONS: // second operand의 결과값은 항상 QuotedList로 가정
-                Node temp = runExpr(operand.car());
-                Node head = stripQuotedList(temp);
-                temp = runExpr(operand.cdr().car());
-                ListNode tail = (ListNode) stripQuotedList(temp); // casting error => wrong input
-                return ListNode.cons(new QuoteNode(ListNode.cons(head, tail)), ListNode.EMPTY_LIST);
-            case NULL_Q: // operand가 List로 들어와야 함.
-                car = operand.car();
-                if (car instanceof IntNode || car instanceof BooleanNode)
-                    return BooleanNode.FALSE_NODE;
-                if (car instanceof QuoteNode) {
-                    Node quote = runQuote(operand); // List가 아닐 수도 있다. ( null? ' c ) => #F
-                    if (quote == ListNode.EMPTY_LIST)
-                        return BooleanNode.TRUE_NODE;
-                    return BooleanNode.FALSE_NODE;
-                }
-                if (car instanceof FunctionNode || car instanceof BinaryOpNode) {
-                    if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( null? func ), ( null? op )
-                        return BooleanNode.FALSE_NODE;
-                }
-                if (car instanceof IdNode) {
-                    if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( null? id )
-                        return runFunction(operator, getIdOperand((IdNode) car));
-                }
-                Node subResult = runList(operand); // operand 내용이 List
-                return runFunction(operator, ListNode.cons(subResult, ListNode.EMPTY_LIST));
-            case ATOM_Q: // only one operand
-                car = operand.car();
-                if (car instanceof IntNode || car instanceof BooleanNode)
-                    return BooleanNode.TRUE_NODE;
-                if (car instanceof QuoteNode) {
-                    Node quote = runQuote(operand); // List가 아닐 수도 있다. ( atom? ' c ) => #T
-                    if (quote == ListNode.EMPTY_LIST)
-                        return BooleanNode.TRUE_NODE;
-                    if (quote instanceof ListNode)
-                        return BooleanNode.FALSE_NODE;
-                    return BooleanNode.TRUE_NODE;
-                }
-                if (car instanceof FunctionNode || car instanceof BinaryOpNode) {
-                    if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( atom? func ), ( atom? op )
-                        return BooleanNode.TRUE_NODE;
-                }
-                if (car instanceof IdNode) {
-                    if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( atom? id )
-                        return runFunction(operator, getIdOperand((IdNode) car));
-                }
-                subResult = runList(operand); // operand 내용이 List
-                return runFunction(operator, ListNode.cons(subResult, ListNode.EMPTY_LIST));
-            case EQ_Q:
-                Node first = runExpr(operand.car());
-                Node second = runExpr(operand.cdr().car());
-                return (first.equals(second)) ? BooleanNode.TRUE_NODE : BooleanNode.FALSE_NODE;
-            case NOT: // operand는 List이고, 그 내용은 Boolean 또는 관계, 논리 연산
-                car = operand.car();
-                if (car instanceof BooleanNode) // Boolean이 List에 감싸져 있으면 벗겨서 함수 호출
-                    return revertBooleanNode((BooleanNode) car);
-                if (car instanceof IntNode || car instanceof QuoteNode)
-                    return BooleanNode.FALSE_NODE;
-                if (car instanceof FunctionNode || car instanceof BinaryOpNode) {
-                    if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( not func ), ( not op )
-                        return BooleanNode.FALSE_NODE;
-                }
-                if (car instanceof IdNode)
-                    return runFunction(operator, getIdOperand((IdNode) car));
-                subResult = runList(operand);
-                return runFunction(operator, ListNode.cons(subResult, ListNode.EMPTY_LIST));
-            case COND:
-                temp = runExpr(operand.car());
-                if (temp instanceof ListNode) // 조건-실행 List 2개 이상
-                    return cond(operand);
-                if (temp == BooleanNode.FALSE_NODE)
-                    return PASS;
-                ListNode cdr = operand.cdr();
-                if (cdr == ListNode.EMPTY_LIST)
-                    return temp;
-                return condOneList(cdr); // 조건-실행 List 1개
-            case DEFINE:
-                first = operand.car();
-                second = operand.cdr().car();
-                if (!(first instanceof IdNode)) // error
+        if (operator.funcType == CAR) { // 기본 피연산자는 QuotedList(List > Quote > List)
+            Node car = operand.car();
+            if (car instanceof QuoteNode) {
+                Node temp = runQuote(operand);
+                if (!(temp instanceof ListNode)) {
+                    errorLog("[ERROR] CAR can evaluate for Quoted List");
                     return null;
-                second = runExpr(second);
-                if (second == null) // error
-                    return null;
-                if (isLambdaExpr(second))
-                    second = new QuoteNode(second);
-                else if (second instanceof ListNode) {
-                    car = ((ListNode) second).car();
-                    if (!(car instanceof QuoteNode)) // eval의 결과인 List가 quote가 아니면 error
-                        return null;
-                    second = car;
                 }
-                ItemTableManager.insertItem((IdNode) first, (ValueNode) second);
-                return PASS;
-            default:
-                break;
+                ListNode quoteInside = (ListNode) temp;
+                if (quoteInside == ListNode.EMPTY_LIST) {
+                    errorLog("[ERROR] CAR can evaluate for Quoted List");
+                    return null;
+                }
+                Node caar = quoteInside.car();
+                if (caar instanceof IntNode || caar instanceof BooleanNode)
+                    return caar;
+                return ListNode.cons(new QuoteNode(caar), ListNode.EMPTY_LIST);
+            }
+            if (car instanceof IdNode)
+                return runFunction(operator, (ListNode) runExpr(car)); // casting error => wrong input
+            return runFunction(operator, (ListNode) runList(operand)); // casting error => wrong input
         }
+        if (operator.funcType == CDR) { // 기본 피연산자는 QuotedList(List > Quote > List)
+            Node car = operand.car();
+            if (car instanceof QuoteNode) {
+                Node temp = runQuote(operand);
+                if (!(temp instanceof ListNode)) {
+                    errorLog("[ERROR] CDR can evaluate for Quoted List");
+                    return null;
+                }
+                ListNode quoteInside = (ListNode) temp;
+                if (quoteInside == ListNode.EMPTY_LIST) {
+                    errorLog("[ERROR] CDR can evaluate for Quoted List");
+                    return null;
+                }
+                return ListNode.cons(new QuoteNode(quoteInside.cdr()), ListNode.EMPTY_LIST);
+            }
+            if (car instanceof IdNode)
+                return runFunction(operator, (ListNode) runExpr(car)); // casting error => wrong input
+            return runFunction(operator, (ListNode) runList(operand)); // casting error => wrong input
+        }
+        if (operator.funcType == CONS) { // second operand의 결과값은 항상 QuotedList로 가정
+            Node temp = runExpr(operand.car());
+            Node head = stripQuotedList(temp);
+            temp = runExpr(operand.cdr().car());
+            ListNode tail = (ListNode) stripQuotedList(temp); // casting error => wrong input
+            return ListNode.cons(new QuoteNode(ListNode.cons(head, tail)), ListNode.EMPTY_LIST);
+        }
+        if (operator.funcType == NULL_Q) { // only one operand
+            Node car = operand.car();
+            if (car instanceof IntNode || car instanceof BooleanNode)
+                return BooleanNode.FALSE_NODE;
+            if (car instanceof QuoteNode) {
+                Node quote = runQuote(operand); // List가 아닐 수도 있다. ( null? ' c ) => #F
+                if (quote == ListNode.EMPTY_LIST)
+                    return BooleanNode.TRUE_NODE;
+                return BooleanNode.FALSE_NODE;
+            }
+            if (car instanceof FunctionNode || car instanceof BinaryOpNode) {
+                if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( null? func ), ( null? op )
+                    return BooleanNode.FALSE_NODE;
+            }
+            if (car instanceof IdNode) {
+                if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( null? id )
+                    return runFunction(operator, getIdOperand((IdNode) car));
+            }
+            Node subResult = runList(operand); // operand 내용이 List
+            return runFunction(operator, ListNode.cons(subResult, ListNode.EMPTY_LIST));
+        }
+        if (operator.funcType == ATOM_Q) { // only one operand
+            Node car = operand.car();
+            if (car instanceof IntNode || car instanceof BooleanNode)
+                return BooleanNode.TRUE_NODE;
+            if (car instanceof QuoteNode) {
+                Node quote = runQuote(operand); // List가 아닐 수도 있다. ( atom? ' c ) => #T
+                if (quote == ListNode.EMPTY_LIST)
+                    return BooleanNode.TRUE_NODE;
+                if (quote instanceof ListNode)
+                    return BooleanNode.FALSE_NODE;
+                return BooleanNode.TRUE_NODE;
+            }
+            if (car instanceof FunctionNode || car instanceof BinaryOpNode) {
+                if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( atom? func ), ( atom? op )
+                    return BooleanNode.TRUE_NODE;
+            }
+            if (car instanceof IdNode) {
+                if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( atom? id )
+                    return runFunction(operator, getIdOperand((IdNode) car));
+            }
+            Node subResult = runList(operand); // operand 내용이 List
+            return runFunction(operator, ListNode.cons(subResult, ListNode.EMPTY_LIST));
+        }
+        if (operator.funcType == EQ_Q) {
+            Node first = runExpr(operand.car());
+            Node second = runExpr(operand.cdr().car());
+            return (first.equals(second)) ? BooleanNode.TRUE_NODE : BooleanNode.FALSE_NODE;
+        }
+        if (operator.funcType == NOT) {
+            Node car = operand.car();
+            if (car instanceof BooleanNode) // Boolean이 List에 감싸져 있으면 벗겨서 함수 호출
+                return revertBooleanNode((BooleanNode) car);
+            if (car instanceof IntNode || car instanceof QuoteNode)
+                return BooleanNode.FALSE_NODE;
+            if (car instanceof FunctionNode || car instanceof BinaryOpNode) {
+                if (operand.cdr() == ListNode.EMPTY_LIST) // ex) ( not func ), ( not op )
+                    return BooleanNode.FALSE_NODE;
+            }
+            if (car instanceof IdNode)
+                return runFunction(operator, getIdOperand((IdNode) car));
+            Node subResult = runList(operand);
+            return runFunction(operator, ListNode.cons(subResult, ListNode.EMPTY_LIST));
+        }
+        if (operator.funcType == DEFINE) {
+            Node first = operand.car();
+            Node second = operand.cdr().car();
+            if (!(first instanceof IdNode)) // error
+                return null;
+            second = runExpr(second);
+            if (second == null) // error
+                return null;
+            if (isLambdaExpr(second))
+                second = new QuoteNode(second);
+            else if (second instanceof ListNode) {
+                Node car = ((ListNode) second).car();
+                if (!(car instanceof QuoteNode)) // eval의 결과인 List가 quote가 아니면 error
+                    return null;
+                second = car;
+            }
+            ItemTableManager.insertItem((IdNode) first, (ValueNode) second);
+            return PASS;
+        }
+        errorLog("[ERROR] undefined function");
         return null;
     }
 
@@ -244,9 +242,8 @@ public class CuteInterpreter {
     }
 
     private Node runBody(ListNode cdr) {
-        Node target = cdr.car();
+        Node result = runExpr(cdr.car());
         ListNode back = cdr.cdr();
-        Node result = runExpr(target);
         if (back == ListNode.EMPTY_LIST)
             return result;
         return runBody(back);
@@ -267,7 +264,7 @@ public class CuteInterpreter {
         return actualParam;
     }
 
-    private Node runLambdaExpr(ListNode list) {
+    private Node runLambda(ListNode list) {
         Node car = list.car();
         ListNode cdr = ((ListNode) car).cdr();
         Node formalParam = testLambdaFormalParam(cdr.car());
@@ -299,31 +296,25 @@ public class CuteInterpreter {
         return BooleanNode.TRUE_NODE;
     }
 
-    // return Last Node
-    private Node lastNode(ListNode listNode) {
-        if (listNode.cdr() == ListNode.EMPTY_LIST)
-            return runExpr(listNode.car());
-        return lastNode(listNode.cdr());
+    private Node condOneList(ListNode list) {
+        Node result = runExpr(list.car());
+        ListNode back = list.cdr();
+        if (result == BooleanNode.FALSE_NODE) // 단일 리스트에서 첫 노드의 결과값이 false이면
+            return PASS;                      // 이 리스트에 해당하는 runCond 결과값 없음
+        if (back == ListNode.EMPTY_LIST)      // 첫노드의 결과값이 true이거나 다른 노드일 때,
+            return result;                    // 리스트의 원소가 하나가 남으면 바로 리턴
+        return runBody(back);                 // 리스트의 원소가 둘 이상이면 나머지 부분으로 재귀 호출
     }
 
-    private Node condOneList(ListNode listNode) {
-        Node evalResult = runExpr(listNode.car());
-        if (evalResult == BooleanNode.FALSE_NODE)  // 단일 리스트에서 첫 노드의 결과값이 false이면
-            return PASS;                           // 이 리스트에 해당하는 cond 결과값 없음
-        if (listNode.cdr() == ListNode.EMPTY_LIST) // 첫노드의 결과값이 true이거나 다른 노드일 때,
-            return evalResult;                     // 리스트의 원소가 하나가 남으면 바로 리턴
-        return lastNode(listNode.cdr());           // 리스트의 원소가 둘 이상이면 나머지 부분으로 재귀 호출
-    }
-
-    private Node cond(ListNode lists) {
+    private Node runCond(ListNode lists) {
         if (lists == ListNode.EMPTY_LIST) // 모든 리스트에 대해 false일 경우 PASS 리턴
             return PASS;
 
         ListNode cdr = lists.cdr();
-        ListNode listNode = (ListNode) lists.car(); // casting error => error input
+        ListNode list = (ListNode) lists.car(); // casting error => error input
 
-        Node evalList = condOneList(listNode);
-        return (evalList == PASS) ? cond(cdr) : evalList;
+        Node evalList = condOneList(list);
+        return (evalList == PASS) ? runCond(cdr) : evalList;
     }
 
     // ListNode의 tail은 항상 List이므로 이를 벗기는 역할을 한다.

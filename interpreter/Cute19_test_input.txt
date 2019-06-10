@@ -23,10 +23,6 @@ value of a
 *( car NestedList ) // item 3
 ( car ( car ' ( ( 1 2 ) 3 ) ) )
 1
-( car ( car ' ( ( a ) 3 ) ) )
-value of a
-( ( car ( car ' ( ( a ) 3 ) ) ) ' ( a ) ) // a == car
-value of a => car
 
 ( define a ' ( ( 1 2 ) 3 ( 4 5 ) ) )
 ( cons a '( 6 7 ) )
@@ -217,3 +213,4 @@ b => '( 1 2 3 )
 ( define cube ( lambda ( n ) ( define sqrt ( lambda ( n ) ( * n n ) ) ) ( * ( sqrt n ) n ) ) )
 ( cube 3 )
 27
+( define lastItem ( lambda ( ls ) ( cond ( ( null? ( cdr ls ) ) ( car ls ) ) ( #T ( lastItem ( cdr ls ) ) ) ) ) )
