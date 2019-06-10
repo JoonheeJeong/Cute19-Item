@@ -54,10 +54,10 @@ public class CuteInterpreter {
     }
 
     private Node runList(ListNode list) {
-        Node car = list.car();
-        if (list == ListNode.EMPTY_LIST || car instanceof QuoteNode)
+        if (list == ListNode.EMPTY_LIST)
             return list;
-        if (car instanceof IntNode || car instanceof BooleanNode) // cond에서만 사용
+        Node car = list.car();
+        if (car == ListNode.EMPTY_LIST)
             return list;
         if (car instanceof FunctionNode)
             return runFunction((FunctionNode) car, (ListNode) stripList(list.cdr()));
@@ -65,7 +65,9 @@ public class CuteInterpreter {
             return runBinary(list);
         if (car instanceof IdNode)
             return runList(ListNode.cons(runExpr(car), list.cdr()));
-        return runList(ListNode.cons(runList((ListNode) car), list.cdr())); // ListNode
+        if (car instanceof ListNode)
+            return runList(ListNode.cons(runList((ListNode) car), list.cdr()));
+        return list;
     }
 
     private Node runFunction(FunctionNode operator, ListNode operand) {
