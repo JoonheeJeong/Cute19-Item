@@ -10,6 +10,7 @@ public class CuteInterpreter {
 
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
+        ItemTableManager.push(new ItemTable());
         System.out.println("Starting Cute19. Enter \"q!\" to exit.");
         String expr;
         do {
@@ -36,7 +37,7 @@ public class CuteInterpreter {
         if (rootExpr == null)
             return null;
         if (rootExpr instanceof IdNode) {
-            Node value = ItemTable.get((IdNode) rootExpr);
+            Node value = ItemTableManager.getItem((IdNode) rootExpr);
             if (value == null) {
                 errorLog("[ERROR] \"" + rootExpr + "\" is undefined.");
                 return null;
@@ -86,7 +87,7 @@ public class CuteInterpreter {
                         return null;
                     }
                     Node caar = quoteInside.car();
-                    if (caar instanceof IntNode || car instanceof BooleanNode)
+                    if (caar instanceof IntNode || caar instanceof BooleanNode)
                         return caar;
                     return ListNode.cons(new QuoteNode(caar), ListNode.EMPTY_LIST);
                 }
@@ -201,7 +202,7 @@ public class CuteInterpreter {
                         return null;
                     second = car;
                 }
-                ItemTable.put((IdNode) first, (ValueNode) second);
+                ItemTableManager.insertItem((IdNode) first, (ValueNode) second);
                 return PASS;
             default:
                 break;
