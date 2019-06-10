@@ -209,7 +209,7 @@ b => '( 1 2 3 )
 ( define plusA ( lambda ( x ) ( + x a ) ) )
 
 ( define plus1 ( lambda ( x ) ( + x 1 ) ) )
-( plus1 3)
+( plus1 3 )
 4
 ( define plus2 ( lambda ( x ) ( + ( plus1 x ) 1 ) ) )
 ( plus2 3 )
