@@ -76,7 +76,7 @@ public class CuteInterpreter {
             return runList(ListNode.cons(runExpr(car), list.cdr()));
         if (car instanceof ListNode) {
             if (isLambdaExpr(car))
-                return runLambda(list);
+                return runLambdaExpr(list);
             return runList(ListNode.cons(runList((ListNode) car), list.cdr()));
         }
         return list;
@@ -243,13 +243,13 @@ public class CuteInterpreter {
         return formalParam;
     }
 
-    private ListNode testLambdaBody(ListNode cdr) {
-        Node body = stripList(cdr);
-        if (!(body instanceof ListNode) || cdr.cdr() != ListNode.EMPTY_LIST) {
-            errorLog("[ERROR] lambda body must be a List");
-            return null;
-        }
-        return (ListNode) body;
+    private Node runBody(ListNode cdr) {
+        Node target = cdr.car();
+        ListNode back = cdr.cdr();
+        Node result = runExpr(target);
+        if (back == ListNode.EMPTY_LIST)
+            return result;
+        return runBody(back);
     }
 
     private Node testLambdaActualParam(ListNode back) {
@@ -267,22 +267,23 @@ public class CuteInterpreter {
         return actualParam;
     }
 
-    private Node runLambda(ListNode list) {
+    private Node runLambdaExpr(ListNode list) {
         Node car = list.car();
         ListNode cdr = ((ListNode) car).cdr();
         Node formalParam = testLambdaFormalParam(cdr.car());
         if (formalParam == null)
-            return null;
-        ListNode body = testLambdaBody(cdr.cdr());
-        if (body == null)
             return null;
         Node actualParam = testLambdaActualParam(list.cdr());
         if (actualParam == null)
             return null;
         ItemTableManager.push(new ItemTable());
         ItemTableManager.insertItem((IdNode) formalParam, (ValueNode) actualParam);
-        Node result = runList(body);
+        Node result = runBody(cdr.cdr());
         ItemTableManager.pop();
+        if (result == null)
+            errorLog("[ERROR] ??? ");
+        else if (result == PASS)
+            errorLog("[ERROR] define: not allowed in an expression context");
         return result;
     }
 

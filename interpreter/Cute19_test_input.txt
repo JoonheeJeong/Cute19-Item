@@ -215,3 +215,5 @@ b => '( 1 2 3 )
 ( plus2 3 )
 5
 ( define cube ( lambda ( n ) ( define sqrt ( lambda ( n ) ( * n n ) ) ) ( * ( sqrt n ) n ) ) )
+( cube 3 )
+27
