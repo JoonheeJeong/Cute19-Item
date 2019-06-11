@@ -185,7 +185,7 @@ b => '( 1 2 3 )
 ( define a + )
 ( define b 1 )
 ( define c 3 )
-( a ( car ' ( b 2 ) ) c )
+( a b c )
 
 ( define a 0 )
 ( define b 1 )
@@ -213,9 +213,11 @@ b => '( 1 2 3 )
 ( define lastItem ( lambda ( ls ) ( cond ( ( null? ( cdr ls ) ) ( car ls ) ) ( #T ( lastItem ( cdr ls ) ) ) ) ) )
 ( define d ' ( 운영체제및실습 웹프로그래밍 데이터통신 실전코딩 IT영어1 프로그래밍언어개론 ) )
 ( lastItem d )
+'프로그래밍언어개론
 ( define a ( cons ' 전지원201602059 ' ( 정준희201602069 ) ) )
 ( define b ' TEAM7 )
 ( define c ( cons b a ) )
+
 
 
 ( car ( cons ( ( lambda ( x ) ( + 1 x ) ) 2 ) ' ( 4 5 ) ) )
@@ -230,4 +232,15 @@ b => '( 1 2 3 )
 ( cons ( ( define plus1 ( lambda ( x ) ( + 1 x ) ) ) ( plus1 3 ) ) ' ( 5 6 ) )
 ( cons ( ( ) ( plus1 3 ) ) ' ( 5 6 ) )
 
-( cond ( ( define plus1 ( lambda ( x ) ( + 1 x ) ) ) ( define x 20190610 ) ( plus1 x ) ) )
+( cond ( #T ( define plus1 ( lambda ( x ) ( + 1 x ) ) ) ( define x 20190610 ) ( plus1 x ) ) )
+( cond ( #T ( define plus1 ( lambda ( x ) ( + 1 x ) ) ) ( define a ( plus1 1 ) ) ( eq? a 1 ) a ) ( ( plus1 1 ) ( define b ( plus1 a ) ) b ) )
+
+( define sum
+    ( lambda ( ls )
+        ( define head ( car ls ) )
+        ( define tail ( cdr ls ) )
+        ( cond
+            ( ( null? tail ) head )
+            ( #T ( + head ( sum tail ) ) ) ) ) )
+
+( define sum ( lambda ( ls ) ( define head ( car ls ) ) ( define tail ( cdr ls ) ) ( cond ( ( null? tail ) head ) ( #T ( + head ( sum tail ) ) ) ) ) ) ) )

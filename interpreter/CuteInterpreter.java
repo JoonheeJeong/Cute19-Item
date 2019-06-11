@@ -53,7 +53,7 @@ public class CuteInterpreter {
             return list;
         Node car = list.car();
         if (car == ListNode.EMPTY_LIST)
-            return list;
+            return null;
         if (car instanceof FunctionNode) {
             FunctionNode.FunctionType funcType = ((FunctionNode) car).funcType;
             if (funcType == LAMBDA)
@@ -71,7 +71,7 @@ public class CuteInterpreter {
             return runList(ListNode.cons(value, list.cdr()));
         }
         if (car instanceof ListNode)
-            return runSubList(list, (ListNode) car);
+            return runNestedList(list, (ListNode) car);
         if (car instanceof QuoteNode) {
             Node nodeInside = ((QuoteNode) car).nodeInside();
             if (nodeInside instanceof IntNode || nodeInside instanceof BooleanNode)
@@ -88,27 +88,18 @@ public class CuteInterpreter {
                 errorLog("[ERROR] " + operator + " must have only two argument");
                 return null;
             }
-            if (operator.funcType == DEFINE) {
+            if (!(operator.funcType == DEFINE))
+                first = runExpr(operand.car());
+            else {
                 first = operand.car();
                 if (!(first instanceof IdNode)) {
                     errorLog("[ERROR] define first argument must be item");
                     return null;
                 }
             }
-            else {
-                first = runExpr(operand.car());
-                if (first == PASS) {
-                    errorLog("[ERROR] define: not allowed in an expression context");
-                    return null;
-                }
-            }
             if (first == null)
                 return null;
             second = runExpr(cdr.car());
-            if (second == PASS) {
-                errorLog("[ERROR] define: not allowed in an expression context");
-                return null;
-            }
             if (second == null)
                 return null;
         }
@@ -118,7 +109,7 @@ public class CuteInterpreter {
             else if (second instanceof ListNode) {
                 Node car = ((ListNode) second).car();
                 if (!(car instanceof QuoteNode)) { // lambda 아니면 무조건 Quoted List
-                    errorLog("[ERROR] unquoted list can't be allocated to item as value");
+                    errorLog("[ERROR] input second operand: type of List not to be allocated to item as value");
                     return null;
                 }
                 second = car;
@@ -133,7 +124,7 @@ public class CuteInterpreter {
             if (first instanceof ListNode) {
                 Node car = ((ListNode) first).car();
                 if (!isLambdaExpr(first) && !(car instanceof QuoteNode)) {
-                    errorLog("[ERROR] First Operand: Not Value List");
+                    errorLog("[ERROR] input first operand: type of List not to be evaluated");
                     return null;
                 }
                 if (car instanceof QuoteNode)
@@ -142,12 +133,12 @@ public class CuteInterpreter {
         }
         if (operator.funcType == CONS) {
             if (!(second instanceof ListNode)) {
-                errorLog("[ERROR] Second Operand: Not Quoted List");
+                errorLog("[ERROR] input second operand: Not Quoted List");
                 return null;
             }
             Node car = ((ListNode) second).car();
             if (!(car instanceof QuoteNode)) {
-                errorLog("[ERROR] Second Operand: Not Quoted List");
+                errorLog("[ERROR] input second operand: Not Quoted List");
                 return null;
             }
             tail = ((QuoteNode) car).nodeInside();
@@ -157,7 +148,7 @@ public class CuteInterpreter {
             if (second instanceof ListNode) {
                 Node car = ((ListNode) second).car();
                 if (!isLambdaExpr(second) && !(car instanceof QuoteNode)) {
-                    errorLog("[ERROR] Second Operand: Not Value List");
+                    errorLog("[ERROR] input second operand: type of List not to be evaluated");
                     return null;
                 }
             }
@@ -185,7 +176,7 @@ public class CuteInterpreter {
                 return runFunction(operator, ListNode.cons(subResult, ListNode.EMPTY_LIST));
             car = ((ListNode) subResult).car();
             if (!(car instanceof QuoteNode)) {
-                errorLog("[ERROR] unquoted List: not allowed as operand");
+                errorLog("[ERROR] input operand: type of List not to be evaluated");
                 return null;
             }
             innerNode = ((QuoteNode) car).nodeInside();
@@ -209,7 +200,6 @@ public class CuteInterpreter {
                         : BooleanNode.TRUE_NODE;
             }
 
-            assert (innerNode != null);
             if (innerNode == ListNode.EMPTY_LIST)
                 return BooleanNode.TRUE_NODE;
 
@@ -223,100 +213,41 @@ public class CuteInterpreter {
 
         // CAR & CDR
         if (!(realOperand instanceof ListNode)) {
-            errorLog("[ERROR] " + operator + " can evaluate for Quoted List");
+            errorLog("[ERROR] " + operator + " can't evaluate Not List");
             return null;
         }
 
-        assert (innerNode != null);
         if (!(innerNode instanceof ListNode)) {
-            errorLog("[ERROR] " + operator + " can evaluate for Quoted List");
+            errorLog("[ERROR] " + operator + " can't evaluate Not List");
             return null;
         }
         ListNode innerList = (ListNode) innerNode;
         if (innerList == ListNode.EMPTY_LIST) {
-            errorLog("[ERROR] " + operator + " can't evaluate for Empty List");
+            errorLog("[ERROR] " + operator + " can't evaluate Empty List");
             return null;
         }
 
-        if (operator.funcType == CDR)
+        if (operator.funcType == CDR) // CDR
             return ListNode.cons(new QuoteNode(innerList.cdr()), ListNode.EMPTY_LIST);
 
+        // CAR
         Node target = innerList.car();
         if (target instanceof IntNode || target instanceof BooleanNode)
             return target;
         return ListNode.cons(new QuoteNode(target), ListNode.EMPTY_LIST);
     }
 
-    private boolean isQuote(Node node) {
-        if (!(node instanceof ListNode))
-            return false;
-        Node car = ((ListNode) node).car();
-        return (car instanceof QuoteNode);
-    }
-
-    private Node runSubList(ListNode list, ListNode car) {
-        if (isLambdaExpr(car))
+    private Node runNestedList(ListNode list, ListNode subList) {
+        if (isLambdaExpr(subList))
             return runLambda(list);
-        Node subResult = runList(car);
+        Node subResult = runList(subList);
         if (subResult == null)
             return null;
-        if (isQuote(subResult))
-            subResult = ((ListNode) subResult).car();
+        if (subResult instanceof ListNode) {
+            errorLog("[ERROR] type of nested list not to be allowed");
+            return null;
+        }
         return runList(ListNode.cons(subResult, list.cdr()));
-    }
-
-    private boolean isLambdaExpr(Node node) {
-        if (!(node instanceof ListNode))
-            return false;
-        Node car = ((ListNode) node).car();
-        if (!(car instanceof FunctionNode))
-            return false;
-        return((FunctionNode) car).funcType == LAMBDA;
-    }
-
-    private Node testLambdaFormalParam(Node car) {
-        if (!(car instanceof ListNode))
-            return null;
-        Node formalParam = ((ListNode) car).car();
-        if (!(formalParam instanceof IdNode) || ((ListNode) car).cdr() != ListNode.EMPTY_LIST) {
-            errorLog("[ERROR] lambda formal parameter must be an Item");
-            return null;
-        }
-        return formalParam;
-    }
-
-    private Node runBody(ListNode cdr) {
-        Node result = runExpr(cdr.car());
-        if (result == null)
-            return null;
-        ListNode back = cdr.cdr();
-        if (back == ListNode.EMPTY_LIST)
-            return result;
-        return runBody(back);
-    }
-
-    private Node testLambdaActualParam(ListNode back) {
-        if (back.cdr() != ListNode.EMPTY_LIST) {
-            errorLog("[ERROR] lambda actual parameter must be \"ONE\" Integer, Item or Quote");
-            return null;
-        }
-        Node actualParam = runExpr(back.car());
-        if (actualParam instanceof ListNode) {
-            ListNode listParam = (ListNode) actualParam;
-            if (listParam.cdr() != ListNode.EMPTY_LIST) {
-                errorLog("[ERROR] Input lambda actual parameter: Two or more List");
-                return null;
-            }
-            Node quoteParam = listParam.car();
-            if (quoteParam instanceof QuoteNode)
-                return quoteParam;
-            errorLog("[ERROR] Input lambda actual parameter: Unquoted List");
-            return null;
-        }
-        if (actualParam instanceof IntNode)
-            return actualParam;
-        errorLog("[ERROR] lambda actual parameter must be \"ONE\" Integer, Item or Quote");
-        return null;
     }
 
     private Node runLambda(ListNode list) {
@@ -332,9 +263,106 @@ public class CuteInterpreter {
         ItemTableManager.insertItem((IdNode) formalParam, (ValueNode) actualParam);
         Node result = runBody(cdr.cdr());
         ItemTableManager.pop();
-        if (result == PASS)
-            errorLog("[ERROR] define: not allowed in an expression context");
         return result;
+    }
+
+    private boolean isLambdaExpr(Node node) {
+        if (!(node instanceof ListNode))
+            return false;
+        Node car = ((ListNode) node).car();
+        if (!(car instanceof FunctionNode))
+            return false;
+        return((FunctionNode) car).funcType == LAMBDA;
+    }
+
+    private Node testLambdaFormalParam(Node car) {
+        if (!(car instanceof ListNode)) // ( x ) list 형식으로 받는다.
+            return null;
+        Node formalParam = ((ListNode) car).car();
+        if (!(formalParam instanceof IdNode) || ((ListNode) car).cdr() != ListNode.EMPTY_LIST) {
+            errorLog("[ERROR] lambda formal parameter must be \"ONE\" Item");
+            return null;
+        }
+        return formalParam;
+    }
+
+    private Node testLambdaActualParam(ListNode back) {
+        if (back.cdr() != ListNode.EMPTY_LIST) {
+            errorLog("[ERROR] lambda actual parameter must be \"ONE\" Integer, Item or Quote");
+            return null;
+        }
+        Node actualParam = runExpr(back.car());
+        if (actualParam == null)
+            return null;
+        if (actualParam instanceof ListNode) {
+            ListNode listParam = (ListNode) actualParam;
+            if (listParam.cdr() != ListNode.EMPTY_LIST) {
+                errorLog("[ERROR] input lambda actual parameter: two or more List");
+                return null;
+            }
+            Node quoteParam = listParam.car();
+            if (quoteParam instanceof QuoteNode) // List를 벗겨서 Quote 형태로 저장된다.
+                return quoteParam;
+            errorLog("[ERROR] input lambda actual parameter: type of List not to be evaluated");
+            return null;
+        }
+        if (actualParam instanceof IntNode)
+            return actualParam;
+        errorLog("[ERROR] lambda actual parameter must be \"ONE\" Integer, Item or Quote");
+        return null;
+    }
+
+    private Node runCond(ListNode lists) {
+        if (lists == ListNode.EMPTY_LIST) // 모든 리스트에 대해 false일 경우 PASS 리턴
+            return PASS;
+        ListNode cdr = lists.cdr();
+        Node car = lists.car();
+        if (!(car instanceof ListNode)) { // cond는 List의 집합만을 Operand로 받는다.
+            errorLog("[ERROR] cond: bad syntax (clause is not a test-value pair)");
+            return null;
+        }
+        ListNode list = (ListNode) car;
+        if (list == ListNode.EMPTY_LIST) {
+            errorLog("[ERROR] cond: bad syntax (clause is not a test-value pair)");
+            return null;
+        }
+        if (list.car() instanceof QuoteNode) {
+            errorLog("[ERROR] quote: bad syntax");
+            return null;
+        }
+        Node evalList = runCondOneList((ListNode) car);
+        return (evalList == PASS) ? runCond(cdr) : evalList;
+    }
+
+    private Node runBody(ListNode cdr) {
+        Node result = runExpr(cdr.car());
+        if (result == null)
+            return null;
+        ListNode back = cdr.cdr();
+        if (back == ListNode.EMPTY_LIST)
+            return result;
+        return runBody(back);
+    }
+
+    private Node runCondOneList(ListNode list) {
+        Node target = list.car();
+        Node result = runExpr(target);
+        if (result == PASS) {
+            errorLog("[ERROR] define: not allowed in an expression context");
+            return null;
+        }
+        if (result == BooleanNode.FALSE_NODE) // 단일 리스트에서 첫 노드의 결과값이 false이면
+            return PASS;                      // 이 리스트에 해당하는 runCond 결과값 없음
+        ListNode back = list.cdr();
+        if (back == ListNode.EMPTY_LIST)
+            return result;                    // 나머지 부분 없으면 리턴
+        return runBody(back);                 // 나머지 부분 재귀 함수 리턴
+    }
+
+    private BooleanNode revertBooleanNode(BooleanNode arg) {
+        if (arg == BooleanNode.TRUE_NODE)
+            return BooleanNode.FALSE_NODE;
+        return BooleanNode.TRUE_NODE;
     }
 
     private Node getIdValue(IdNode id) {
@@ -351,42 +379,11 @@ public class CuteInterpreter {
         return value;
     }
 
-    private BooleanNode revertBooleanNode(BooleanNode arg) {
-        if (arg == BooleanNode.TRUE_NODE)
-            return BooleanNode.FALSE_NODE;
-        return BooleanNode.TRUE_NODE;
-    }
-
-    private Node runCondOneList(ListNode list) {
-        Node result = runExpr(list.car());
-        if (result == null)
-            return null;
-        ListNode back = list.cdr();
-        if (result == BooleanNode.FALSE_NODE) // 단일 리스트에서 첫 노드의 결과값이 false이면
-            return PASS;                      // 이 리스트에 해당하는 runCond 결과값 없음
-        if (back == ListNode.EMPTY_LIST)      // 첫노드의 결과값이 true이거나 다른 노드일 때,
-            return result;                    // 리스트의 원소가 하나가 남으면 바로 리턴
-        return runBody(back);                 // 리스트의 원소가 둘 이상이면 나머지 부분으로 재귀 호출
-    }
-
-    private Node runCond(ListNode lists) {
-        if (lists == ListNode.EMPTY_LIST) // 모든 리스트에 대해 false일 경우 PASS 리턴
-            return PASS;
-        ListNode cdr = lists.cdr();
-        Node list = lists.car();
-        if (!(list instanceof ListNode)) { // cond는 List의 집합만을 Operand로 받는다.
-            errorLog("[ERROR] In Cond, clause must be List");
+    private IntNode getIntOperand(Node operand) {
+        if (operand == null) {
+            errorLog("[ERROR] operand is empty");
             return null;
         }
-        Node evalList = runCondOneList((ListNode) list);
-        if (evalList == null)
-            return null;
-        return (evalList == PASS) ? runCond(cdr) : evalList;
-    }
-
-    private IntNode getIntOperand(Node operand) {
-        if (operand == null) // error input
-            return null;
 
         if (operand instanceof IntNode)        // 정지조건
             return (IntNode) operand;
@@ -420,6 +417,10 @@ public class CuteInterpreter {
         BinaryOpNode operator = (BinaryOpNode) list.car();
 
         ListNode cdr = list.cdr();
+        if (cdr ==ListNode.EMPTY_LIST) {
+            errorLog("[ERROR] operand is empty");
+            return null;
+        }
 
         IntNode firstOperand = getIntOperand(cdr.car());
         IntNode secondOperand = getIntOperand(cdr.cdr().car());
