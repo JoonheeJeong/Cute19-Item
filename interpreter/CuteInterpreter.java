@@ -126,32 +126,42 @@ public class CuteInterpreter {
             ItemTableManager.insertItem((IdNode) first, (ValueNode) second);
             return PASS;
         }
-        if (operator.funcType == EQ_Q)
-            return (first.equals(second)) ? BooleanNode.TRUE_NODE : BooleanNode.FALSE_NODE;
-        if (operator.funcType == CONS) {
-            Node head;
-            if (!(first instanceof ListNode))
-                head = first;
-            else {
-                ListNode listResult = (ListNode) first;
-                Node car = listResult.car();
-                if (!(car instanceof QuoteNode)) {
-                    errorLog("[ERROR] unquoted List: not allowed as operand");
+
+        Node head = first;
+        Node tail = second;
+        if (operator.funcType == CONS || operator.funcType == EQ_Q) {
+            if (first instanceof ListNode) {
+                Node car = ((ListNode) first).car();
+                if (!isLambdaExpr(first) && !(car instanceof QuoteNode)) {
+                    errorLog("[ERROR] First Operand: Not Value List");
                     return null;
                 }
-                head = ((QuoteNode) car).nodeInside();
+                if (car instanceof QuoteNode)
+                    head = ((QuoteNode) car).nodeInside();
             }
-
-            if (!isQuote(second)) {
-                errorLog("[ERROR] In CONS, Second Operand must be Quoted List");
+        }
+        if (operator.funcType == CONS) {
+            if (!(second instanceof ListNode)) {
+                errorLog("[ERROR] Second Operand: Not Quoted List");
                 return null;
             }
-            Node tail = stripQuotedList(second);
-            if (!(tail instanceof ListNode)) {
-                errorLog("[ERROR] In CONS, Second Operand must be Quoted List");
+            Node car = ((ListNode) second).car();
+            if (!(car instanceof QuoteNode)) {
+                errorLog("[ERROR] Second Operand: Not Quoted List");
                 return null;
             }
+            tail = ((QuoteNode) car).nodeInside();
             return ListNode.cons(new QuoteNode(ListNode.cons(head, (ListNode) tail)), ListNode.EMPTY_LIST);
+        }
+        if (operator.funcType == EQ_Q) {
+            if (second instanceof ListNode) {
+                Node car = ((ListNode) second).car();
+                if (!isLambdaExpr(second) && !(car instanceof QuoteNode)) {
+                    errorLog("[ERROR] Second Operand: Not Value List");
+                    return null;
+                }
+            }
+            return (head.equals(tail)) ? BooleanNode.TRUE_NODE : BooleanNode.FALSE_NODE;
         }
 
         if (!(operand.cdr() == ListNode.EMPTY_LIST)) {
@@ -166,17 +176,14 @@ public class CuteInterpreter {
             ListNode listOperand = ListNode.cons(value, ListNode.EMPTY_LIST);
             return runFunction(operator, listOperand);
         }
-        Node innerNode = null;
-        Node car = null;
+        Node innerNode = null, car = null;
         if (realOperand instanceof ListNode) {
-            ListNode listOperand = (ListNode) realOperand;
-            Node subResult = runList(listOperand);
+            Node subResult = runList((ListNode) realOperand);
             if (subResult == null)
                 return null;
             if (!(subResult instanceof ListNode))
                 return runFunction(operator, ListNode.cons(subResult, ListNode.EMPTY_LIST));
-            ListNode listResult = (ListNode) subResult;
-            car = listResult.car();
+            car = ((ListNode) subResult).car();
             if (!(car instanceof QuoteNode)) {
                 errorLog("[ERROR] unquoted List: not allowed as operand");
                 return null;
@@ -442,14 +449,5 @@ public class CuteInterpreter {
                 break;
         }
         return null;
-    }
-
-    private Node stripQuotedList(Node node) {
-        if (node == null)
-            return null;
-        if (!(node instanceof ListNode))
-            return node;
-        Node car = ((ListNode) node).car();
-        return (car instanceof QuoteNode) ? ((QuoteNode) car).nodeInside() : node;
     }
 }
