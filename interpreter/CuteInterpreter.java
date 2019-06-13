@@ -81,35 +81,39 @@ public class CuteInterpreter {
     }
 
     private Node runFunction(FunctionNode operator, ListNode operand) {
+        if (operand == ListNode.EMPTY_LIST) {
+            errorLog("[ERROR] operand is empty");
+            return null;
+        }
         Node first = null, second = null;
-        if (operator.funcType == DEFINE || operator.funcType == EQ_Q || operator.funcType == CONS) {
+        if (operator.funcType == DEFINE || operator.funcType == CONS || operator.funcType == EQ_Q) {
+            first = (operator.funcType == CONS) ? runExpr(operand.car()) : operand.car();
+            if (first == ListNode.EMPTY_LIST) {
+                errorLog("[ERROR] empty list can't be an operand");
+                return null;
+            }
             ListNode cdr = operand.cdr();
             if (cdr.cdr() != ListNode.EMPTY_LIST) {
                 errorLog("[ERROR] " + operator + " must have only two argument");
                 return null;
             }
-            if (!(operator.funcType == DEFINE))
-                first = runExpr(operand.car());
-            else {
-                first = operand.car();
-                if (!(first instanceof IdNode)) {
-                    errorLog("[ERROR] define first argument must be item");
-                    return null;
-                }
+            second = (operator.funcType == EQ_Q) ? cdr.car() : runExpr(cdr.car());
+            if (second == ListNode.EMPTY_LIST) {
+                errorLog("[ERROR] empty list can't be an operand");
+                return null;
             }
-            if (first == null)
-                return null;
-            second = runExpr(cdr.car());
-            if (second == null)
-                return null;
         }
         if (operator.funcType == DEFINE) {
+            if (!(first instanceof IdNode)) {
+                errorLog("[ERROR] define first argument must be item");
+                return null;
+            }
             if (isLambdaExpr(second)) // runExpr의 결과가 순수 Non-Quoted List인 경우는 Lambda뿐.
                 second = new QuoteNode(second);
             else if (second instanceof ListNode) {
                 Node car = ((ListNode) second).car();
                 if (!(car instanceof QuoteNode)) { // lambda 아니면 무조건 Quoted List
-                    errorLog("[ERROR] input second operand: type of List not to be allocated to item as value");
+                    errorLog("[ERROR] input second operand: list type unable to be allocated to item as value");
                     return null;
                 }
                 second = car;
@@ -117,21 +121,23 @@ public class CuteInterpreter {
             ItemTableManager.insertItem((IdNode) first, (ValueNode) second);
             return PASS;
         }
+        if (operator.funcType == EQ_Q) {
+            if (first.equals(second))
+                return BooleanNode.TRUE_NODE;
+            return runExpr(first).equals(runExpr(second)) ? BooleanNode.TRUE_NODE : BooleanNode.FALSE_NODE;
+        }
 
-        Node head = first;
-        Node tail = second;
-        if (operator.funcType == CONS || operator.funcType == EQ_Q) {
+        if (operator.funcType == CONS) {
+            Node head = first;
             if (first instanceof ListNode) {
                 Node car = ((ListNode) first).car();
                 if (!isLambdaExpr(first) && !(car instanceof QuoteNode)) {
-                    errorLog("[ERROR] input first operand: type of List not to be evaluated");
+                    errorLog("[ERROR] input first operand: list type unable to be evaluated");
                     return null;
                 }
                 if (car instanceof QuoteNode)
                     head = ((QuoteNode) car).nodeInside();
             }
-        }
-        if (operator.funcType == CONS) {
             if (!(second instanceof ListNode)) {
                 errorLog("[ERROR] input second operand: Not Quoted List");
                 return null;
@@ -141,18 +147,8 @@ public class CuteInterpreter {
                 errorLog("[ERROR] input second operand: Not Quoted List");
                 return null;
             }
-            tail = ((QuoteNode) car).nodeInside();
+            Node tail = ((QuoteNode) car).nodeInside();
             return ListNode.cons(new QuoteNode(ListNode.cons(head, (ListNode) tail)), ListNode.EMPTY_LIST);
-        }
-        if (operator.funcType == EQ_Q) {
-            if (second instanceof ListNode) {
-                Node car = ((ListNode) second).car();
-                if (!isLambdaExpr(second) && !(car instanceof QuoteNode)) {
-                    errorLog("[ERROR] input second operand: type of List not to be evaluated");
-                    return null;
-                }
-            }
-            return (head.equals(tail)) ? BooleanNode.TRUE_NODE : BooleanNode.FALSE_NODE;
         }
 
         if (!(operand.cdr() == ListNode.EMPTY_LIST)) {
@@ -176,7 +172,7 @@ public class CuteInterpreter {
                 return runFunction(operator, ListNode.cons(subResult, ListNode.EMPTY_LIST));
             car = ((ListNode) subResult).car();
             if (!(car instanceof QuoteNode)) {
-                errorLog("[ERROR] input operand: type of List not to be evaluated");
+                errorLog("[ERROR] input operand: list type unable to be evaluated");
                 return null;
             }
             innerNode = ((QuoteNode) car).nodeInside();
@@ -244,7 +240,7 @@ public class CuteInterpreter {
         if (subResult == null)
             return null;
         if (subResult instanceof ListNode) {
-            errorLog("[ERROR] type of nested list not to be allowed");
+            errorLog("[ERROR] list type unable to be allowed");
             return null;
         }
         return runList(ListNode.cons(subResult, list.cdr()));
@@ -303,7 +299,7 @@ public class CuteInterpreter {
             Node quoteParam = listParam.car();
             if (quoteParam instanceof QuoteNode) // List를 벗겨서 Quote 형태로 저장된다.
                 return quoteParam;
-            errorLog("[ERROR] input lambda actual parameter: type of List not to be evaluated");
+            errorLog("[ERROR] input lambda actual parameter: list type unable to be evaluated");
             return null;
         }
         if (actualParam instanceof IntNode)
@@ -392,22 +388,22 @@ public class CuteInterpreter {
             if (value instanceof IntNode) {
                 return (IntNode) value;
             }
-            errorLog("[ERROR] NaN");
+            errorLog("[ERROR] one of operands is NaN");
             return null;
         }
         if (!(operand instanceof ListNode)) {
-            errorLog("[ERROR] NaN");
+            errorLog("[ERROR] one of operands is NaN");
             return null;
         }
         ListNode listOperand = (ListNode) operand;
         Node car = listOperand.car();
         if (car instanceof IntNode || car instanceof BooleanNode || car instanceof QuoteNode) {
-            errorLog("[ERROR] NaN");
+            errorLog("[ERROR] one of operands is NaN");
             return null;
         }
         Node subResult = runList((ListNode) operand);
         if (!(subResult instanceof IntNode)) {
-            errorLog("[ERROR] NaN");
+            errorLog("[ERROR] one of operands is NaN");
             return null;
         }
         return (IntNode) subResult;
@@ -423,9 +419,10 @@ public class CuteInterpreter {
         }
 
         IntNode firstOperand = getIntOperand(cdr.car());
+        if (firstOperand == null)
+            return null;
         IntNode secondOperand = getIntOperand(cdr.cdr().car());
-
-        if (firstOperand == null || secondOperand == null) // error input
+        if (secondOperand == null)
             return null;
 
         int firstValue = firstOperand.value;
